@@ -1,8 +1,8 @@
+use super::App;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Color, Stylize};
 use ratatui::widgets::{Block, BorderType, Paragraph, Widget};
-use super::App;
 
 impl Widget for &App {
     /// Renders the user interface widgets.
@@ -13,7 +13,7 @@ impl Widget for &App {
     // - https://github.com/ratatui/ratatui/tree/master/examples
     fn render(self, area: Rect, buf: &mut Buffer) {
         let block = Block::bordered()
-            .title("event-driven-generated")
+            .title("Proxmox UnPrivileged Manager")
             .title_alignment(Alignment::Center)
             .border_type(BorderType::Rounded);
 

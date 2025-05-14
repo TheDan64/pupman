@@ -7,9 +7,15 @@ mod ui;
 use event::{AppEvent, Event, EventHandler};
 
 #[derive(Debug)]
+enum DisplayState {
+    Main,
+}
+
+#[derive(Debug)]
 pub struct App {
     is_running: bool,
     event_handler: EventHandler,
+    display_state: Vec<DisplayState>,
 }
 
 impl Default for App {
@@ -17,6 +23,7 @@ impl Default for App {
         Self {
             is_running: true,
             event_handler: EventHandler::new(),
+            display_state: vec![DisplayState::Main],
         }
     }
 }
@@ -71,6 +78,10 @@ impl App {
 
     /// Set running to false to quit the application.
     pub fn quit(&mut self) {
-        self.is_running = false;
+        if self.display_state.len() > 1 {
+            self.display_state.pop();
+        } else {
+            self.is_running = false;
+        }
     }
 }
