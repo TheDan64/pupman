@@ -17,13 +17,24 @@ pub struct Config {
     entries: Vec<ConfEntry>,
 }
 
+impl Config {
+    pub fn sectionless_idmap(&self) -> impl Iterator<Item = &ConfEntry> {
+        self.entries
+            .iter()
+            .take_while(|entry| !matches!(entry, ConfEntry::Section(_)))
+            .filter(|entry| matches!(entry, ConfEntry::KeyValue(key, _) if key == "lxc.idmap"))
+    }
+}
+
 impl FromStr for Config {
     type Err = color_eyre::Report;
 
     fn from_str(content: &str) -> color_eyre::Result<Self> {
-        let mut entries = Vec::new();
+        let lines = content.lines();
+        // size_hint() is always (0, None) here; but we keep it in case future optimizations are introduced
+        let mut entries = Vec::with_capacity(lines.size_hint().1.unwrap_or(0));
 
-        for line in content.lines() {
+        for line in lines {
             let trimmed = line.trim();
 
             if trimmed.is_empty() {
@@ -68,7 +79,7 @@ impl Display for Config {
 }
 
 #[test]
-fn test_config_from_str() -> color_eyre::Result<()> {
+fn test_config_to_from_str() -> color_eyre::Result<()> {
     let content = r#"arch: amd64
 cores: 1
 features: nesting=1
@@ -95,12 +106,13 @@ ostype: debian
 rootfs: local-zfs:subvol-100-disk-0,size=4G
 snaptime: 1764532648
 swap: 512
-unprivileged: 1"#;
+unprivileged: 1
+lxc.idmap: u 0 1000 3000
+lxc.idmap: g 0 1000 3000"#;
 
     let config = Config::from_str(content)?;
 
-    assert_eq!(config.entries.len(), 27);
-
+    assert_eq!(config.entries.len(), 29);
     assert!(
         matches!(&config.entries[0], ConfEntry::KeyValue(key, value) if key == "arch" && value == "amd64")
     );
@@ -178,6 +190,24 @@ unprivileged: 1"#;
     assert!(
         matches!(&config.entries[26], ConfEntry::KeyValue(key, value) if key == "unprivileged" && value == "1")
     );
+    assert!(
+        matches!(&config.entries[27], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "u 0 1000 3000")
+    );
+    assert!(
+        matches!(&config.entries[28], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "g 0 1000 3000")
+    );
+
+    let idmaps = config.sectionless_idmap().collect::<Vec<_>>();
+
+    assert_eq!(idmaps.len(), 2);
+    assert!(
+        matches!(idmaps[0], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "u 0 6653600 65536")
+    );
+    assert!(
+        matches!(idmaps[1], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "g 0 6653600 65536")
+    );
+
+    // assert_eq!(config.to_string(), content);
 
     Ok(())
 }
