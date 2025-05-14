@@ -1,4 +1,5 @@
 use super::App;
+use crate::proxmox::lxc::DIR;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -85,41 +86,57 @@ impl Widget for &App {
 
         outer_block.clone().render(area, buf);
 
+        let inner_area = outer_block.inner(area);
+
+        if inner_area.height < 1 || inner_area.width < 1 {
+            return;
+        }
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Min(0)])
-            .split(outer_block.inner(area));
+            .constraints([
+                Constraint::Length(3 + (host.subgid.len() + host.subuid.len()) as u16),
+                Constraint::Min(0),
+            ])
+            .split(inner_area);
 
-        // Host mapping info (top)
-        let subuid_line = format!(
-            "subuid: {}",
-            host.subuid
-                .iter()
-                .map(|e| format!("{} {} {}", e.kind, e.host_id, e.size))
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
+        // ── Host table ──
+        let mut host_rows = Vec::new();
 
-        let subgid_line = format!(
-            "subgid: {}",
-            host.subgid
-                .iter()
-                .map(|e| format!("{} {} {}", e.kind, e.host_id, e.size))
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
+        for entry in host.subuid.iter().chain(host.subgid.iter()) {
+            host_rows.push(Row::new(vec![
+                Cell::from(entry.kind.clone()), // u or g
+                Cell::from("root"),             // hardcoded: root
+                Cell::from(entry.host_id.to_string()),
+                Cell::from(entry.size.to_string()),
+            ]));
+        }
 
-        let host_paragraph = Paragraph::new(Text::from(vec![
-            Line::from(Span::raw(subuid_line)),
-            Line::from(Span::raw(subgid_line)),
-        ]))
+        let host_header = Row::new(vec![
+            Cell::from("Kind"),
+            Cell::from("Name"),
+            Cell::from("Host ID"),
+            Cell::from("Size"),
+        ])
+        .style(Style::default().add_modifier(Modifier::BOLD));
+
+        let host_table = Table::new(
+            host_rows,
+            &[
+                Constraint::Length(6),
+                Constraint::Length(10),
+                Constraint::Length(12),
+                Constraint::Length(8),
+            ],
+        )
+        .header(host_header)
         .block(
             Block::default()
-                .title("Host Mappings")
+                .title("Host Mappings (/etc/subuid /etc/subgid)")
                 .borders(Borders::ALL),
         );
 
-        host_paragraph.render(chunks[0], buf);
+        host_table.render(chunks[0], buf);
 
         // Container mapping table
         let header = Row::new(vec![
@@ -165,7 +182,7 @@ impl Widget for &App {
         .header(header)
         .block(
             Block::default()
-                .title("Container ID Maps")
+                .title(format!("Container ID Maps ({DIR})"))
                 .borders(Borders::ALL),
         );
 

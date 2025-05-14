@@ -2,7 +2,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 // const DIR: &str = "/etc/pve/lxc";
-// const DIR: &str = "/tmp";
+pub const DIR: &str = "/tmp";
 
 #[derive(Debug)]
 pub enum ConfEntry {
