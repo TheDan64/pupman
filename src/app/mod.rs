@@ -27,7 +27,7 @@ impl Default for App {
             is_running: true,
             event_handler: EventHandler::new(),
             display_state: vec![DisplayState::Main],
-            findings: Vec::new(),
+            findings: vec![Finding::Good, Finding::Bad, Finding::Good],
             selected_finding: None,
         }
     }
@@ -69,6 +69,50 @@ impl App {
             KeyCode::Esc | KeyCode::Char('q') => self.event_handler.send(AppEvent::Quit),
             KeyCode::Char('c' | 'C') if key_event.modifiers == KeyModifiers::CONTROL => {
                 self.event_handler.send(AppEvent::Quit)
+            },
+            KeyCode::Up => {
+                if self.findings.is_empty() {
+                    return Ok(());
+                }
+
+                if let Some(index) = self.selected_finding {
+                    if index > 0 {
+                        self.selected_finding = Some(index - 1);
+                    } else {
+                        self.selected_finding = None;
+                    }
+                } else {
+                    self.selected_finding = Some(self.findings.len() - 1);
+                }
+            },
+            KeyCode::Down => {
+                if self.findings.is_empty() {
+                    return Ok(());
+                }
+
+                if let Some(index) = self.selected_finding {
+                    if index < self.findings.len() - 1 {
+                        self.selected_finding = Some(index + 1);
+                    } else {
+                        self.selected_finding = None;
+                    }
+                } else {
+                    self.selected_finding = Some(0);
+                }
+            },
+            KeyCode::PageUp => {
+                if self.findings.is_empty() {
+                    return Ok(());
+                }
+
+                self.selected_finding = Some(0);
+            },
+            KeyCode::PageDown => {
+                if self.findings.is_empty() {
+                    return Ok(());
+                }
+
+                self.selected_finding = Some(self.findings.len() - 1);
             },
             // Other handlers you could add here.
             _ => {},

@@ -5,6 +5,11 @@ use ratatui::layout::{Alignment, Rect};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, BorderType, Borders, Cell, Row, Table, Widget};
+use std::fmt::Display;
+
+mod findings_list;
+
+use findings_list::FindingsList;
 
 impl Widget for &App {
     /// Renders the user interface widgets.
@@ -14,8 +19,6 @@ impl Widget for &App {
     // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
     // - https://github.com/ratatui/ratatui/tree/master/examples
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // TMP
-        let findings = vec![Finding {}];
         let host = HostMapping {
             subuid: vec![
                 IdMapEntry {
@@ -180,23 +183,7 @@ impl Widget for &App {
 
         table.render(chunks[1], buf);
 
-        // ── Findings Table ──
-        let mut findings_rows = Vec::with_capacity(findings.len());
-
-        for _finding in findings {
-            findings_rows.push(Row::new([Cell::from("Finding")]));
-        }
-
-        let header = Row::new([Cell::new("Finding")]);
-        let block = Block::default()
-            .title("Findings")
-            .borders(Borders::ALL)
-            .title_alignment(Alignment::Center);
-        let table = Table::new(findings_rows, [Constraint::Min(25)])
-            .header(header)
-            .block(block);
-
-        table.render(right_area, buf);
+        FindingsList::new(&self.findings, self.selected_finding).render(right_area, buf);
     }
 }
 
@@ -223,4 +210,15 @@ struct HostMapping {
 }
 
 #[derive(Debug)]
-pub struct Finding {}
+pub enum Finding {
+    Good,
+    Bad,
+}
+impl Display for Finding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Finding::Good => write!(f, "Good Finding"),
+            Finding::Bad => write!(f, "Bad Finding"),
+        }
+    }
+}
