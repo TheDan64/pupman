@@ -5,7 +5,7 @@ mod event;
 mod ui;
 
 use event::{AppEvent, Event, EventHandler};
-use ui::Finding;
+use ui::{ContainerIdMaps, Finding, FindingKind, HostMapping, IdMapEntry};
 
 #[derive(Debug)]
 enum DisplayState {
@@ -19,6 +19,8 @@ pub struct App {
     display_state: Vec<DisplayState>,
     findings: Vec<Finding>,
     selected_finding: Option<usize>,
+    host_mapping: HostMapping,
+    container_mappings: Vec<ContainerIdMaps>,
 }
 
 impl Default for App {
@@ -27,8 +29,85 @@ impl Default for App {
             is_running: true,
             event_handler: EventHandler::new(),
             display_state: vec![DisplayState::Main],
-            findings: vec![Finding::Good, Finding::Bad, Finding::Good],
+            findings: vec![
+                Finding {
+                    kind: FindingKind::Good,
+                    host_mapping_highlights: vec![0, 3],
+                    container_id_mapping_highlights: vec![1],
+                },
+                Finding {
+                    kind: FindingKind::Bad,
+                    host_mapping_highlights: vec![1, 3],
+                    container_id_mapping_highlights: vec![0],
+                },
+                Finding {
+                    kind: FindingKind::Good,
+                    host_mapping_highlights: vec![1],
+                    container_id_mapping_highlights: vec![0, 1],
+                },
+            ],
             selected_finding: None,
+            host_mapping: HostMapping {
+                subuid: vec![
+                    IdMapEntry {
+                        kind: "UID".to_string(),
+                        container_id: 0,
+                        host_id: 100000,
+                        size: 65536,
+                    },
+                    IdMapEntry {
+                        kind: "UID".to_string(),
+                        container_id: 65536,
+                        host_id: 100000 + 65536,
+                        size: 4294967295 - 65536,
+                    },
+                ],
+                subgid: vec![
+                    IdMapEntry {
+                        kind: "GID".to_string(),
+                        container_id: 0,
+                        host_id: 100000,
+                        size: 65536,
+                    },
+                    IdMapEntry {
+                        kind: "GID".to_string(),
+                        container_id: 65536,
+                        host_id: 100000 + 65536,
+                        size: 4294967295 - 65536,
+                    },
+                ],
+            },
+            container_mappings: vec![ContainerIdMaps {
+                filename: "100.conf".to_string(),
+                uid_maps: vec![
+                    IdMapEntry {
+                        kind: "UID".to_string(),
+                        container_id: 0,
+                        host_id: 100000,
+                        size: 65536,
+                    },
+                    IdMapEntry {
+                        kind: "UID".to_string(),
+                        container_id: 65536,
+                        host_id: 100000 + 65536,
+                        size: 4294967295 - 65536,
+                    },
+                ],
+                gid_maps: vec![
+                    IdMapEntry {
+                        kind: "GID".to_string(),
+                        container_id: 0,
+                        host_id: 100000,
+                        size: 65536,
+                    },
+                    IdMapEntry {
+                        kind: "GID".to_string(),
+                        container_id: 65536,
+                        host_id: 100000 + 65536,
+                        size: 4294967295 - 65536,
+                    },
+                ],
+            }],
         }
     }
 }

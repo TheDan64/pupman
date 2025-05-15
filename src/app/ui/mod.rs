@@ -3,7 +3,7 @@ use crate::proxmox::lxc::DIR;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, BorderType, Borders, Cell, Row, Table, Widget};
 use std::fmt::Display;
 
@@ -19,69 +19,8 @@ impl Widget for &App {
     // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
     // - https://github.com/ratatui/ratatui/tree/master/examples
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let host = HostMapping {
-            subuid: vec![
-                IdMapEntry {
-                    kind: "UID".to_string(),
-                    container_id: 0,
-                    host_id: 100000,
-                    size: 65536,
-                },
-                IdMapEntry {
-                    kind: "UID".to_string(),
-                    container_id: 65536,
-                    host_id: 100000 + 65536,
-                    size: 4294967295 - 65536,
-                },
-            ],
-            subgid: vec![
-                IdMapEntry {
-                    kind: "GID".to_string(),
-                    container_id: 0,
-                    host_id: 100000,
-                    size: 65536,
-                },
-                IdMapEntry {
-                    kind: "GID".to_string(),
-                    container_id: 65536,
-                    host_id: 100000 + 65536,
-                    size: 4294967295 - 65536,
-                },
-            ],
-        };
-        let containers = vec![ContainerIdMaps {
-            filename: "100.conf".to_string(),
-            uid_maps: vec![
-                IdMapEntry {
-                    kind: "UID".to_string(),
-                    container_id: 0,
-                    host_id: 100000,
-                    size: 65536,
-                },
-                IdMapEntry {
-                    kind: "UID".to_string(),
-                    container_id: 65536,
-                    host_id: 100000 + 65536,
-                    size: 4294967295 - 65536,
-                },
-            ],
-            gid_maps: vec![
-                IdMapEntry {
-                    kind: "GID".to_string(),
-                    container_id: 0,
-                    host_id: 100000,
-                    size: 65536,
-                },
-                IdMapEntry {
-                    kind: "GID".to_string(),
-                    container_id: 65536,
-                    host_id: 100000 + 65536,
-                    size: 4294967295 - 65536,
-                },
-            ],
-        }];
-        // TMP
-
+        let host = &self.host_mapping;
+        let containers = &self.container_mappings;
         let outer_block = Block::bordered()
             .title("Proxmox UnPrivileged Manager")
             .title_alignment(Alignment::Center)
@@ -111,15 +50,28 @@ impl Widget for &App {
             ])
             .split(left_area);
 
+        let selected_finding = self.selected_finding();
+
         // ── Host Table ──
         let mut host_rows = Vec::new();
 
-        for entry in host.subuid.iter().chain(host.subgid.iter()) {
-            host_rows.push(Row::new([
-                Cell::from(&*entry.kind),
-                Cell::from(entry.host_id.to_string()),
-                Cell::from(entry.size.to_string()),
-            ]));
+        for (i, entry) in host.subuid.iter().chain(host.subgid.iter()).enumerate() {
+            let mut style = Style::default();
+
+            if let Some(finding) = selected_finding {
+                if finding.host_mapping_highlights.contains(&i) {
+                    style = style.bg(finding.kind.selected_bg()).fg(Color::Black);
+                }
+            }
+
+            host_rows.push(
+                Row::new([
+                    Cell::from(&*entry.kind),
+                    Cell::from(entry.host_id.to_string()),
+                    Cell::from(entry.size.to_string()),
+                ])
+                .style(style),
+            );
         }
 
         let host_header = Row::new([Cell::from("Kind"), Cell::from("Host ID"), Cell::from("Size")])
@@ -151,20 +103,30 @@ impl Widget for &App {
 
         let mut rows = Vec::new();
 
-        for container in &containers {
+        for container in containers {
             let max = container.uid_maps.len().max(container.gid_maps.len());
 
             for i in 0..max {
+                let mut style = Style::default();
                 let uid = container.uid_maps.get(i);
                 let gid = container.gid_maps.get(i);
 
-                rows.push(Row::new(vec![
-                    Cell::from(if i == 0 { &*container.filename } else { "" }),
-                    Cell::from(uid.map_or(String::new(), |e| e.container_id.to_string())),
-                    Cell::from(uid.map_or(String::new(), |e| e.host_id.to_string())),
-                    Cell::from(gid.map_or(String::new(), |e| e.container_id.to_string())),
-                    Cell::from(gid.map_or(String::new(), |e| e.host_id.to_string())),
-                ]));
+                if let Some(finding) = selected_finding {
+                    if finding.container_id_mapping_highlights.contains(&i) {
+                        style = style.bg(finding.kind.selected_bg()).fg(Color::Black);
+                    }
+                }
+
+                rows.push(
+                    Row::new(vec![
+                        Cell::from(if i == 0 { &*container.filename } else { "" }),
+                        Cell::from(uid.map_or(String::new(), |e| e.container_id.to_string())),
+                        Cell::from(uid.map_or(String::new(), |e| e.host_id.to_string())),
+                        Cell::from(gid.map_or(String::new(), |e| e.container_id.to_string())),
+                        Cell::from(gid.map_or(String::new(), |e| e.host_id.to_string())),
+                    ])
+                    .style(style),
+                );
             }
         }
 
@@ -189,36 +151,67 @@ impl Widget for &App {
 
 // Data structures
 #[derive(Debug)]
-struct IdMapEntry {
-    kind: String, // "u" or "g"
-    container_id: u32,
-    host_id: u32,
-    size: u32,
+pub struct IdMapEntry {
+    pub kind: String,
+    pub container_id: u32,
+    pub host_id: u32,
+    pub size: u32,
 }
 
 #[derive(Debug)]
-struct ContainerIdMaps {
-    filename: String,
-    uid_maps: Vec<IdMapEntry>,
-    gid_maps: Vec<IdMapEntry>,
+pub struct ContainerIdMaps {
+    pub filename: String,
+    pub uid_maps: Vec<IdMapEntry>,
+    pub gid_maps: Vec<IdMapEntry>,
 }
 
 #[derive(Debug)]
-struct HostMapping {
-    subuid: Vec<IdMapEntry>,
-    subgid: Vec<IdMapEntry>,
+pub struct HostMapping {
+    pub subuid: Vec<IdMapEntry>,
+    pub subgid: Vec<IdMapEntry>,
 }
 
-#[derive(Debug)]
-pub enum Finding {
+#[derive(Clone, Copy, Debug)]
+pub enum FindingKind {
     Good,
     Bad,
 }
+
+impl FindingKind {
+    fn base_fg(self) -> Color {
+        match self {
+            FindingKind::Good => Color::Green,
+            FindingKind::Bad => Color::Red,
+        }
+    }
+
+    fn selected_bg(self) -> Color {
+        match self {
+            FindingKind::Good => Color::LightGreen,
+            FindingKind::Bad => Color::LightRed,
+        }
+    }
+
+    fn badge(&self) -> &'static str {
+        match self {
+            FindingKind::Good => "✅ ",
+            FindingKind::Bad => "❌ ",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Finding {
+    pub kind: FindingKind,
+    pub host_mapping_highlights: Vec<usize>,
+    pub container_id_mapping_highlights: Vec<usize>,
+}
+
 impl Display for Finding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Finding::Good => write!(f, "Good Finding"),
-            Finding::Bad => write!(f, "Bad Finding"),
+        match self.kind {
+            FindingKind::Good => write!(f, "Good Finding"),
+            FindingKind::Bad => write!(f, "Bad Finding"),
         }
     }
 }
