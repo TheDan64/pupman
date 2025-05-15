@@ -45,15 +45,9 @@ impl FromStr for Config {
                 let section = trimmed[1..trimmed.len() - 1].to_string();
                 entries.push(ConfEntry::Section(section));
             } else if let Some((key, value)) = trimmed.split_once(':') {
-                entries.push(ConfEntry::KeyValue(
-                    key.trim().to_string(),
-                    value.trim().to_string(),
-                ));
+                entries.push(ConfEntry::KeyValue(key.trim().to_string(), value.trim().to_string()));
             } else if let Some((key, value)) = trimmed.split_once('=') {
-                entries.push(ConfEntry::KeyValue(
-                    key.trim().to_string(),
-                    value.trim().to_string(),
-                ));
+                entries.push(ConfEntry::KeyValue(key.trim().to_string(), value.trim().to_string()));
             } else {
                 entries.push(ConfEntry::KeyValue(trimmed.to_string(), String::new()));
             }
@@ -113,42 +107,24 @@ lxc.idmap: g 0 1000 3000"#;
     let config = Config::from_str(content)?;
 
     assert_eq!(config.entries.len(), 29);
-    assert!(
-        matches!(&config.entries[0], ConfEntry::KeyValue(key, value) if key == "arch" && value == "amd64")
-    );
-    assert!(
-        matches!(&config.entries[1], ConfEntry::KeyValue(key, value) if key == "cores" && value == "1")
-    );
-    assert!(
-        matches!(&config.entries[2], ConfEntry::KeyValue(key, value) if key == "features" && value == "nesting=1")
-    );
+    assert!(matches!(&config.entries[0], ConfEntry::KeyValue(key, value) if key == "arch" && value == "amd64"));
+    assert!(matches!(&config.entries[1], ConfEntry::KeyValue(key, value) if key == "cores" && value == "1"));
+    assert!(matches!(&config.entries[2], ConfEntry::KeyValue(key, value) if key == "features" && value == "nesting=1"));
     assert!(
         matches!(&config.entries[3], ConfEntry::KeyValue(key, value) if key == "hostname" && value == "trash-pandas")
     );
-    assert!(
-        matches!(&config.entries[4], ConfEntry::KeyValue(key, value) if key == "memory" && value == "1024")
-    );
+    assert!(matches!(&config.entries[4], ConfEntry::KeyValue(key, value) if key == "memory" && value == "1024"));
     assert!(
         matches!(&config.entries[5], ConfEntry::KeyValue(key, value) if key == "net0" && value == "name=eth0,bridge=vmbr0,firewall=1,gw=192.168.1.1,hwaddr=AD:24:14:45:A8:38,ip=192.168.1.42/24,type=veth")
     );
-    assert!(
-        matches!(&config.entries[6], ConfEntry::KeyValue(key, value) if key == "ostype" && value == "debian")
-    );
-    assert!(
-        matches!(&config.entries[7], ConfEntry::KeyValue(key, value) if key == "parent" && value == "pre-setup")
-    );
+    assert!(matches!(&config.entries[6], ConfEntry::KeyValue(key, value) if key == "ostype" && value == "debian"));
+    assert!(matches!(&config.entries[7], ConfEntry::KeyValue(key, value) if key == "parent" && value == "pre-setup"));
     assert!(
         matches!(&config.entries[8], ConfEntry::KeyValue(key, value) if key == "rootfs" && value == "local-zfs:subvol-100-disk-0,size=4G")
     );
-    assert!(
-        matches!(&config.entries[9], ConfEntry::KeyValue(key, value) if key == "swap" && value == "512")
-    );
-    assert!(
-        matches!(&config.entries[10], ConfEntry::KeyValue(key, value) if key == "tags" && value == "unprivileged")
-    );
-    assert!(
-        matches!(&config.entries[11], ConfEntry::KeyValue(key, value) if key == "unprivileged" && value == "1")
-    );
+    assert!(matches!(&config.entries[9], ConfEntry::KeyValue(key, value) if key == "swap" && value == "512"));
+    assert!(matches!(&config.entries[10], ConfEntry::KeyValue(key, value) if key == "tags" && value == "unprivileged"));
+    assert!(matches!(&config.entries[11], ConfEntry::KeyValue(key, value) if key == "unprivileged" && value == "1"));
     assert!(
         matches!(&config.entries[12], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "u 0 6653600 65536")
     );
@@ -157,39 +133,27 @@ lxc.idmap: g 0 1000 3000"#;
     );
     assert!(matches!(&config.entries[14], ConfEntry::EmptyLine));
     assert!(matches!(&config.entries[15], ConfEntry::Section(section) if section == "pre-setup"));
-    assert!(
-        matches!(&config.entries[16], ConfEntry::KeyValue(key, value) if key == "arch" && value == "amd64")
-    );
-    assert!(
-        matches!(&config.entries[17], ConfEntry::KeyValue(key, value) if key == "cores" && value == "1")
-    );
+    assert!(matches!(&config.entries[16], ConfEntry::KeyValue(key, value) if key == "arch" && value == "amd64"));
+    assert!(matches!(&config.entries[17], ConfEntry::KeyValue(key, value) if key == "cores" && value == "1"));
     assert!(
         matches!(&config.entries[18], ConfEntry::KeyValue(key, value) if key == "features" && value == "nesting=1")
     );
     assert!(
         matches!(&config.entries[19], ConfEntry::KeyValue(key, value) if key == "hostname" && value == "trash-pandas")
     );
-    assert!(
-        matches!(&config.entries[20], ConfEntry::KeyValue(key, value) if key == "memory" && value == "1024")
-    );
+    assert!(matches!(&config.entries[20], ConfEntry::KeyValue(key, value) if key == "memory" && value == "1024"));
     assert!(
         matches!(&config.entries[21], ConfEntry::KeyValue(key, value) if key == "net0" && value == "name=eth0,bridge=vmbr0,firewall=1,gw=192.168.1.1,hwaddr=AD:24:14:45:A8:38,ip=192.168.1.42/24,type=veth")
     );
-    assert!(
-        matches!(&config.entries[22], ConfEntry::KeyValue(key, value) if key == "ostype" && value == "debian")
-    );
+    assert!(matches!(&config.entries[22], ConfEntry::KeyValue(key, value) if key == "ostype" && value == "debian"));
     assert!(
         matches!(&config.entries[23], ConfEntry::KeyValue(key, value) if key == "rootfs" && value == "local-zfs:subvol-100-disk-0,size=4G")
     );
     assert!(
         matches!(&config.entries[24], ConfEntry::KeyValue(key, value) if key == "snaptime" && value == "1764532648")
     );
-    assert!(
-        matches!(&config.entries[25], ConfEntry::KeyValue(key, value) if key == "swap" && value == "512")
-    );
-    assert!(
-        matches!(&config.entries[26], ConfEntry::KeyValue(key, value) if key == "unprivileged" && value == "1")
-    );
+    assert!(matches!(&config.entries[25], ConfEntry::KeyValue(key, value) if key == "swap" && value == "512"));
+    assert!(matches!(&config.entries[26], ConfEntry::KeyValue(key, value) if key == "unprivileged" && value == "1"));
     assert!(
         matches!(&config.entries[27], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "u 0 1000 3000")
     );
@@ -200,13 +164,10 @@ lxc.idmap: g 0 1000 3000"#;
     let idmaps = config.sectionless_idmap().collect::<Vec<_>>();
 
     assert_eq!(idmaps.len(), 2);
-    assert!(
-        matches!(idmaps[0], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "u 0 6653600 65536")
-    );
-    assert!(
-        matches!(idmaps[1], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "g 0 6653600 65536")
-    );
+    assert!(matches!(idmaps[0], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "u 0 6653600 65536"));
+    assert!(matches!(idmaps[1], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "g 0 6653600 65536"));
 
+    // FIXME:
     // assert_eq!(config.to_string(), content);
 
     Ok(())

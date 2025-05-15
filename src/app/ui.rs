@@ -119,20 +119,12 @@ impl Widget for &App {
             ]));
         }
 
-        let host_header = Row::new([
-            Cell::from("Kind"),
-            Cell::from("Host ID"),
-            Cell::from("Size"),
-        ])
-        .style(Style::default().add_modifier(Modifier::BOLD));
+        let host_header = Row::new([Cell::from("Kind"), Cell::from("Host ID"), Cell::from("Size")])
+            .style(Style::default().add_modifier(Modifier::BOLD));
 
         let host_table = Table::new(
             host_rows,
-            &[
-                Constraint::Length(6),
-                Constraint::Length(12),
-                Constraint::Length(8),
-            ],
+            &[Constraint::Length(6), Constraint::Length(12), Constraint::Length(8)],
         )
         .header(host_header)
         .block(

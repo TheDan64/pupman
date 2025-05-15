@@ -92,7 +92,6 @@ impl App {
     }
 
     fn selected_finding(&self) -> Option<&Finding> {
-        self.selected_finding
-            .and_then(|index| self.findings.get(index))
+        self.selected_finding.and_then(|index| self.findings.get(index))
     }
 }

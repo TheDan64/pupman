@@ -40,9 +40,7 @@ impl FromStr for PVEVersion {
             return Err(eyre!("Invalid PVE manager version major"));
         };
 
-        Ok(PVEVersion {
-            major: major.parse()?,
-        })
+        Ok(PVEVersion { major: major.parse()? })
     }
 }
 
