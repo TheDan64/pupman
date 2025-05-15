@@ -5,6 +5,7 @@ mod event;
 mod ui;
 
 use event::{AppEvent, Event, EventHandler};
+use ui::Finding;
 
 #[derive(Debug)]
 enum DisplayState {
@@ -16,6 +17,8 @@ pub struct App {
     is_running: bool,
     event_handler: EventHandler,
     display_state: Vec<DisplayState>,
+    findings: Vec<Finding>,
+    selected_finding: Option<usize>,
 }
 
 impl Default for App {
@@ -24,6 +27,8 @@ impl Default for App {
             is_running: true,
             event_handler: EventHandler::new(),
             display_state: vec![DisplayState::Main],
+            findings: Vec::new(),
+            selected_finding: None,
         }
     }
 }
@@ -48,7 +53,7 @@ impl App {
             Event::Tick => self.tick(),
             Event::Crossterm(event) => match event {
                 crossterm::event::Event::Key(key_event) => self.handle_key_event(key_event)?,
-                _ => {}
+                _ => {},
             },
             Event::App(app_event) => match app_event {
                 AppEvent::Quit => self.quit(),
@@ -60,12 +65,13 @@ impl App {
     /// Handles the key events and updates the state of [`App`].
     pub fn handle_key_event(&mut self, key_event: KeyEvent) -> color_eyre::Result<()> {
         match key_event.code {
+            // TODO: Esc should back out of popups and such rather than quitting
             KeyCode::Esc | KeyCode::Char('q') => self.event_handler.send(AppEvent::Quit),
             KeyCode::Char('c' | 'C') if key_event.modifiers == KeyModifiers::CONTROL => {
                 self.event_handler.send(AppEvent::Quit)
-            }
+            },
             // Other handlers you could add here.
-            _ => {}
+            _ => {},
         }
         Ok(())
     }
@@ -83,5 +89,10 @@ impl App {
         } else {
             self.is_running = false;
         }
+    }
+
+    fn selected_finding(&self) -> Option<&Finding> {
+        self.selected_finding
+            .and_then(|index| self.findings.get(index))
     }
 }

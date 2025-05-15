@@ -15,6 +15,7 @@ impl Widget for &App {
     // - https://github.com/ratatui/ratatui/tree/master/examples
     fn render(self, area: Rect, buf: &mut Buffer) {
         // TMP
+        let findings = vec![Finding {}];
         let host = HostMapping {
             subuid: vec![
                 IdMapEntry {
@@ -91,26 +92,34 @@ impl Widget for &App {
             return;
         }
 
+        let &[left_area, right_area] = &*Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(inner_area)
+        else {
+            unreachable!("Only two halves exist")
+        };
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(3 + (host.subgid.len() + host.subuid.len()) as u16),
                 Constraint::Min(0),
             ])
-            .split(inner_area);
+            .split(left_area);
 
-        // ── Host table ──
+        // ── Host Table ──
         let mut host_rows = Vec::new();
 
         for entry in host.subuid.iter().chain(host.subgid.iter()) {
-            host_rows.push(Row::new(vec![
+            host_rows.push(Row::new([
                 Cell::from(&*entry.kind),
                 Cell::from(entry.host_id.to_string()),
                 Cell::from(entry.size.to_string()),
             ]));
         }
 
-        let host_header = Row::new(vec![
+        let host_header = Row::new([
             Cell::from("Kind"),
             Cell::from("Host ID"),
             Cell::from("Size"),
@@ -129,13 +138,14 @@ impl Widget for &App {
         .block(
             Block::default()
                 .title("Host Root Mappings (/etc/subuid /etc/subgid)")
-                .borders(Borders::ALL),
+                .borders(Borders::ALL)
+                .title_alignment(Alignment::Center),
         );
 
         host_table.render(chunks[0], buf);
 
-        // Container mapping table
-        let header = Row::new(vec![
+        // ── Container Table ──
+        let header = Row::new([
             Cell::from("Config"),
             Cell::from("UID Container ID"),
             Cell::from("UID Host ID"),
@@ -163,24 +173,38 @@ impl Widget for &App {
             }
         }
 
-        let table = Table::new(
-            rows,
-            &[
-                Constraint::Length(20),
-                Constraint::Length(20),
-                Constraint::Length(12),
-                Constraint::Length(20),
-                Constraint::Length(12),
-            ],
-        )
-        .header(header)
-        .block(
-            Block::default()
-                .title(format!("Container ID Maps ({DIR})"))
-                .borders(Borders::ALL),
-        );
+        let block = Block::default()
+            .title(format!("Container ID Maps ({DIR})"))
+            .borders(Borders::ALL)
+            .title_alignment(Alignment::Center);
+        let constraints = [
+            Constraint::Length(20),
+            Constraint::Length(20),
+            Constraint::Length(12),
+            Constraint::Length(20),
+            Constraint::Length(12),
+        ];
+        let table = Table::new(rows, &constraints).header(header).block(block);
 
         table.render(chunks[1], buf);
+
+        // ── Findings Table ──
+        let mut findings_rows = Vec::with_capacity(findings.len());
+
+        for _finding in findings {
+            findings_rows.push(Row::new([Cell::from("Finding")]));
+        }
+
+        let header = Row::new([Cell::new("Finding")]);
+        let block = Block::default()
+            .title("Findings")
+            .borders(Borders::ALL)
+            .title_alignment(Alignment::Center);
+        let table = Table::new(findings_rows, [Constraint::Min(25)])
+            .header(header)
+            .block(block);
+
+        table.render(right_area, buf);
     }
 }
 
@@ -205,3 +229,6 @@ struct HostMapping {
     subuid: Vec<IdMapEntry>,
     subgid: Vec<IdMapEntry>,
 }
+
+#[derive(Debug)]
+pub struct Finding {}
