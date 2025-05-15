@@ -4,8 +4,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, Widget};
+use ratatui::widgets::{Block, BorderType, Borders, Cell, Row, Table, Widget};
 
 impl Widget for &App {
     /// Renders the user interface widgets.
@@ -19,13 +18,13 @@ impl Widget for &App {
         let host = HostMapping {
             subuid: vec![
                 IdMapEntry {
-                    kind: "u".to_string(),
+                    kind: "UID".to_string(),
                     container_id: 0,
                     host_id: 100000,
                     size: 65536,
                 },
                 IdMapEntry {
-                    kind: "u".to_string(),
+                    kind: "UID".to_string(),
                     container_id: 65536,
                     host_id: 100000 + 65536,
                     size: 4294967295 - 65536,
@@ -33,13 +32,13 @@ impl Widget for &App {
             ],
             subgid: vec![
                 IdMapEntry {
-                    kind: "g".to_string(),
+                    kind: "GID".to_string(),
                     container_id: 0,
                     host_id: 100000,
                     size: 65536,
                 },
                 IdMapEntry {
-                    kind: "g".to_string(),
+                    kind: "GID".to_string(),
                     container_id: 65536,
                     host_id: 100000 + 65536,
                     size: 4294967295 - 65536,
@@ -47,16 +46,16 @@ impl Widget for &App {
             ],
         };
         let containers = vec![ContainerIdMaps {
-            filename: "test.conf".to_string(),
+            filename: "100.conf".to_string(),
             uid_maps: vec![
                 IdMapEntry {
-                    kind: "u".to_string(),
+                    kind: "UID".to_string(),
                     container_id: 0,
                     host_id: 100000,
                     size: 65536,
                 },
                 IdMapEntry {
-                    kind: "u".to_string(),
+                    kind: "UID".to_string(),
                     container_id: 65536,
                     host_id: 100000 + 65536,
                     size: 4294967295 - 65536,
@@ -64,13 +63,13 @@ impl Widget for &App {
             ],
             gid_maps: vec![
                 IdMapEntry {
-                    kind: "g".to_string(),
+                    kind: "GID".to_string(),
                     container_id: 0,
                     host_id: 100000,
                     size: 65536,
                 },
                 IdMapEntry {
-                    kind: "g".to_string(),
+                    kind: "GID".to_string(),
                     container_id: 65536,
                     host_id: 100000 + 65536,
                     size: 4294967295 - 65536,
@@ -105,8 +104,7 @@ impl Widget for &App {
 
         for entry in host.subuid.iter().chain(host.subgid.iter()) {
             host_rows.push(Row::new(vec![
-                Cell::from(entry.kind.clone()), // u or g
-                Cell::from("root"),             // hardcoded: root
+                Cell::from(&*entry.kind),
                 Cell::from(entry.host_id.to_string()),
                 Cell::from(entry.size.to_string()),
             ]));
@@ -114,7 +112,6 @@ impl Widget for &App {
 
         let host_header = Row::new(vec![
             Cell::from("Kind"),
-            Cell::from("Name"),
             Cell::from("Host ID"),
             Cell::from("Size"),
         ])
@@ -124,7 +121,6 @@ impl Widget for &App {
             host_rows,
             &[
                 Constraint::Length(6),
-                Constraint::Length(10),
                 Constraint::Length(12),
                 Constraint::Length(8),
             ],
@@ -132,7 +128,7 @@ impl Widget for &App {
         .header(host_header)
         .block(
             Block::default()
-                .title("Host Mappings (/etc/subuid /etc/subgid)")
+                .title("Host Root Mappings (/etc/subuid /etc/subgid)")
                 .borders(Borders::ALL),
         );
 
@@ -149,22 +145,20 @@ impl Widget for &App {
         .style(Style::default().add_modifier(Modifier::BOLD));
 
         let mut rows = Vec::new();
+
         for container in &containers {
             let max = container.uid_maps.len().max(container.gid_maps.len());
+
             for i in 0..max {
                 let uid = container.uid_maps.get(i);
                 let gid = container.gid_maps.get(i);
 
                 rows.push(Row::new(vec![
-                    Cell::from(if i == 0 {
-                        container.filename.clone()
-                    } else {
-                        "".to_string()
-                    }),
-                    Cell::from(uid.map_or("".into(), |e| e.container_id.to_string())),
-                    Cell::from(uid.map_or("".into(), |e| e.host_id.to_string())),
-                    Cell::from(gid.map_or("".into(), |e| e.container_id.to_string())),
-                    Cell::from(gid.map_or("".into(), |e| e.host_id.to_string())),
+                    Cell::from(if i == 0 { &*container.filename } else { "" }),
+                    Cell::from(uid.map_or(String::new(), |e| e.container_id.to_string())),
+                    Cell::from(uid.map_or(String::new(), |e| e.host_id.to_string())),
+                    Cell::from(gid.map_or(String::new(), |e| e.container_id.to_string())),
+                    Cell::from(gid.map_or(String::new(), |e| e.host_id.to_string())),
                 ]));
             }
         }
