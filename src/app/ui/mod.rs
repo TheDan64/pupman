@@ -1,5 +1,5 @@
 use super::App;
-use crate::proxmox::lxc::DIR;
+use crate::proxmox::lxc::CONF_DIR;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -131,7 +131,7 @@ impl Widget for &App {
         }
 
         let block = Block::default()
-            .title(format!("Container ID Maps ({DIR})"))
+            .title(format!("Container ID Maps ({CONF_DIR})"))
             .borders(Borders::ALL)
             .title_alignment(Alignment::Center);
         let constraints = [

@@ -1,10 +1,9 @@
 use std::fmt::Display;
 use std::str::FromStr;
 
-pub const DIR: &str = "/etc/pve/lxc";
-// pub const DIR: &str = "/tmp";
+pub const CONF_DIR: &str = "/etc/pve/lxc";
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ConfEntry {
     Section(String),
     KeyValue(String, String),
@@ -12,7 +11,7 @@ pub enum ConfEntry {
     EmptyLine,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Config {
     entries: Vec<ConfEntry>,
 }

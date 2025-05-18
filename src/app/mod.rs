@@ -1,22 +1,22 @@
+use std::path::{Path, PathBuf};
+
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-mod event;
-mod ui;
+pub(crate) mod event;
+pub(crate) mod ui;
 
 use event::{AppEvent, Event, EventHandler};
 use ui::{ContainerIdMaps, Finding, FindingKind, HostMapping, IdMapEntry};
 
-#[derive(Debug)]
-enum DisplayState {
-    Main,
-}
+use crate::fs::monitor::MonitorHandler;
+use crate::proxmox::lxc;
 
 #[derive(Debug)]
 pub struct App {
     is_running: bool,
+    monitor: MonitorHandler,
     event_handler: EventHandler,
-    display_state: Vec<DisplayState>,
     findings: Vec<Finding>,
     selected_finding: Option<usize>,
     host_mapping: HostMapping,
@@ -25,27 +25,20 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
+        Self::new(Path::new(lxc::CONF_DIR))
+    }
+}
+
+impl App {
+    /// Constructs a new instance of [`App`].
+    pub fn new(lxc_config_dir: &Path) -> Self {
+        let event_handler = EventHandler::new();
+
         Self {
             is_running: true,
-            event_handler: EventHandler::new(),
-            display_state: vec![DisplayState::Main],
-            findings: vec![
-                Finding {
-                    kind: FindingKind::Good,
-                    host_mapping_highlights: vec![0, 3],
-                    container_id_mapping_highlights: vec![1],
-                },
-                Finding {
-                    kind: FindingKind::Bad,
-                    host_mapping_highlights: vec![1, 3],
-                    container_id_mapping_highlights: vec![0],
-                },
-                Finding {
-                    kind: FindingKind::Good,
-                    host_mapping_highlights: vec![1],
-                    container_id_mapping_highlights: vec![0, 1],
-                },
-            ],
+            monitor: MonitorHandler::new(event_handler.sender(), lxc_config_dir).expect("Fixme"),
+            event_handler,
+            findings: Vec::new(),
             selected_finding: None,
             host_mapping: HostMapping {
                 subuid: vec![
@@ -110,13 +103,6 @@ impl Default for App {
             }],
         }
     }
-}
-
-impl App {
-    /// Constructs a new instance of [`App`].
-    pub fn new() -> Self {
-        Self::default()
-    }
 
     /// Run the application's main loop.
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
@@ -135,10 +121,35 @@ impl App {
                 _ => {},
             },
             Event::App(app_event) => match app_event {
+                AppEvent::FileSystemChanged(change_kind, path) => {
+                    // TODO:
+                    self.evaluate_findings();
+                },
                 AppEvent::Quit => self.quit(),
             },
         }
         Ok(())
+    }
+
+    /// Findings are re-evaluated based on latest update
+    fn evaluate_findings(&mut self) {
+        self.findings = vec![
+            Finding {
+                kind: FindingKind::Good,
+                host_mapping_highlights: vec![0, 3],
+                container_id_mapping_highlights: vec![1],
+            },
+            Finding {
+                kind: FindingKind::Bad,
+                host_mapping_highlights: vec![1, 3],
+                container_id_mapping_highlights: vec![0],
+            },
+            Finding {
+                kind: FindingKind::Good,
+                host_mapping_highlights: vec![1],
+                container_id_mapping_highlights: vec![0, 1],
+            },
+        ];
     }
 
     /// Handles the key events and updates the state of [`App`].
@@ -207,11 +218,7 @@ impl App {
 
     /// Set running to false to quit the application.
     pub fn quit(&mut self) {
-        if self.display_state.len() > 1 {
-            self.display_state.pop();
-        } else {
-            self.is_running = false;
-        }
+        self.is_running = false;
     }
 
     fn selected_finding(&self) -> Option<&Finding> {

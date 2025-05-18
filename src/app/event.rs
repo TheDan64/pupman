@@ -1,10 +1,9 @@
 use color_eyre::eyre::WrapErr;
 use ratatui::crossterm::event::{self, Event as CrosstermEvent};
-use std::{
-    sync::mpsc,
-    thread,
-    time::{Duration, Instant},
-};
+use std::path::PathBuf;
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::thread;
+use std::time::{Duration, Instant};
 
 /// The frequency at which tick events are emitted.
 const TICK_FPS: f64 = 30.0;
@@ -28,11 +27,16 @@ pub enum Event {
     App(AppEvent),
 }
 
+#[derive(Clone, Debug)]
+pub enum FileSystemChangeKind {
+    Remove,
+    Update,
+}
+
 /// Application events.
-///
-/// You can extend this enum with your own custom events.
 #[derive(Clone, Debug)]
 pub enum AppEvent {
+    FileSystemChanged(FileSystemChangeKind, PathBuf),
     /// Quit the application.
     Quit,
 }
@@ -41,9 +45,9 @@ pub enum AppEvent {
 #[derive(Debug)]
 pub struct EventHandler {
     /// Event sender channel.
-    sender: mpsc::Sender<Event>,
+    sender: Sender<Event>,
     /// Event receiver channel.
-    receiver: mpsc::Receiver<Event>,
+    receiver: Receiver<Event>,
 }
 
 impl EventHandler {
@@ -72,10 +76,14 @@ impl EventHandler {
     ///
     /// This is useful for sending events to the event handler which will be processed by the next
     /// iteration of the application's event loop.
-    pub fn send(&mut self, app_event: AppEvent) {
+    pub fn send(&self, app_event: AppEvent) {
         // Ignore the result as the receiver cannot be dropped while this struct still has a
         // reference to it
         let _ = self.sender.send(Event::App(app_event));
+    }
+
+    pub fn sender(&self) -> Sender<Event> {
+        self.sender.clone()
     }
 }
 
