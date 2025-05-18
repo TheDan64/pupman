@@ -1,15 +1,14 @@
 use std::path::Path;
 use std::sync::mpsc::Sender;
 
+use notify::event::{CreateKind, ModifyKind, RemoveKind};
 use notify::{
     Config, Event as NotifyEvent, EventHandler, EventKind, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher,
-    event::{CreateKind, ModifyKind, RemoveKind},
 };
 
 use crate::app::event::{AppEvent, Event, FileSystemChangeKind};
 
-const ETC_SUBGID: &str = "/etc/subgid";
-const ETC_SUBUID: &str = "/etc/subuid";
+use super::{ETC_SUBGID, ETC_SUBUID};
 
 fn is_valid_file(path: &Path) -> bool {
     if path == Path::new(ETC_SUBGID) || path == Path::new(ETC_SUBUID) {

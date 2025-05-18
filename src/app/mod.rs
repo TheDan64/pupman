@@ -1,5 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
+use crossterm::event::Event as CrosstermEvent;
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -10,12 +11,13 @@ use event::{AppEvent, Event, EventHandler};
 use ui::{ContainerIdMaps, Finding, FindingKind, HostMapping, IdMapEntry};
 
 use crate::fs::monitor::MonitorHandler;
+use crate::fs::{ETC_SUBGID, ETC_SUBUID};
 use crate::proxmox::lxc;
 
 #[derive(Debug)]
 pub struct App {
     is_running: bool,
-    monitor: MonitorHandler,
+    _monitor: MonitorHandler,
     event_handler: EventHandler,
     findings: Vec<Finding>,
     selected_finding: Option<usize>,
@@ -36,7 +38,7 @@ impl App {
 
         Self {
             is_running: true,
-            monitor: MonitorHandler::new(event_handler.sender(), lxc_config_dir).expect("Fixme"),
+            _monitor: MonitorHandler::new(event_handler.sender(), lxc_config_dir).expect("Fixme"),
             event_handler,
             findings: Vec::new(),
             selected_finding: None,
@@ -117,12 +119,22 @@ impl App {
         match self.event_handler.next()? {
             Event::Tick => self.tick(),
             Event::Crossterm(event) => match event {
-                crossterm::event::Event::Key(key_event) => self.handle_key_event(key_event)?,
+                CrosstermEvent::Key(key_event) => self.handle_key_event(key_event)?,
                 _ => {},
             },
             Event::App(app_event) => match app_event {
                 AppEvent::FileSystemChanged(change_kind, path) => {
-                    // TODO:
+                    match path.to_str() {
+                        Some(ETC_SUBUID) => {},
+                        Some(ETC_SUBGID) => {},
+                        Some(conf) => match change_kind {
+                            event::FileSystemChangeKind::Remove => todo!(),
+                            event::FileSystemChangeKind::Update => todo!(),
+                        },
+                        // TODO: Log as warning?
+                        None => return Ok(()),
+                    };
+
                     self.evaluate_findings();
                 },
                 AppEvent::Quit => self.quit(),
