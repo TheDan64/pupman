@@ -29,14 +29,14 @@ pub enum Event {
 
 #[derive(Clone, Debug)]
 pub enum FileSystemChangeKind {
-    Remove,
-    Update,
+    Remove(PathBuf),
+    Update(PathBuf, String),
 }
 
 /// Application events.
 #[derive(Clone, Debug)]
 pub enum AppEvent {
-    FileSystemChanged(FileSystemChangeKind, PathBuf),
+    FileSystemChanged(FileSystemChangeKind),
     /// Quit the application.
     Quit,
 }

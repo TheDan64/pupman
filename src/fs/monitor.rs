@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 
 use notify::event::{CreateKind, ModifyKind, RemoveKind};
@@ -25,12 +25,13 @@ fn is_valid_file(path: &Path) -> bool {
 }
 
 pub struct FileEventHandler {
-    tx: Sender<Event>,
+    app_tx: Sender<Event>,
+    fs_tx: Sender<PathBuf>,
 }
 
 impl FileEventHandler {
-    pub fn new(tx: Sender<Event>) -> Self {
-        Self { tx }
+    pub fn new(app_tx: Sender<Event>, fs_tx: Sender<PathBuf>) -> Self {
+        Self { app_tx, fs_tx }
     }
 }
 
@@ -42,19 +43,20 @@ impl EventHandler for FileEventHandler {
                     continue;
                 }
 
-                let change_kind = match event.kind {
-                    EventKind::Create(CreateKind::File) => FileSystemChangeKind::Update,
-                    EventKind::Modify(ModifyKind::Data(_)) => FileSystemChangeKind::Update,
-                    // REVIEW: Not sure if this one is correct:
-                    EventKind::Modify(ModifyKind::Name(_)) => FileSystemChangeKind::Remove,
-                    EventKind::Remove(RemoveKind::File) => FileSystemChangeKind::Remove,
+                match event.kind {
+                    EventKind::Create(CreateKind::File) | EventKind::Modify(ModifyKind::Data(_)) => {
+                        self.fs_tx.send(path).expect("fixme");
+                    },
+                    // REVIEW: Not sure if (re)name is correct:
+                    EventKind::Modify(ModifyKind::Name(_)) | EventKind::Remove(RemoveKind::File) => {
+                        self.app_tx
+                            .send(Event::App(AppEvent::FileSystemChanged(FileSystemChangeKind::Remove(
+                                path,
+                            ))))
+                            .expect("fixme");
+                    },
                     _ => continue,
                 };
-
-                // TODO: Log on error
-                self.tx
-                    .send(Event::App(AppEvent::FileSystemChanged(change_kind, path)))
-                    .expect("not to fail");
             }
         }
     }
@@ -66,8 +68,8 @@ pub struct MonitorHandler {
 }
 
 impl MonitorHandler {
-    pub fn new(tx: Sender<Event>, lxc_config_dir: &Path) -> notify::Result<Self> {
-        let event_handler = FileEventHandler { tx };
+    pub fn new(app_tx: Sender<Event>, fs_tx: Sender<PathBuf>, lxc_config_dir: &Path) -> notify::Result<Self> {
+        let event_handler = FileEventHandler { app_tx, fs_tx };
         let mut watcher = RecommendedWatcher::new(event_handler, Config::default())?;
 
         watcher.watch(Path::new(ETC_SUBGID), RecursiveMode::NonRecursive)?;

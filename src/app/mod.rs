@@ -1,4 +1,6 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::thread;
 
 use crossterm::event::Event as CrosstermEvent;
 use ratatui::DefaultTerminal;
@@ -7,16 +9,17 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 pub(crate) mod event;
 pub(crate) mod ui;
 
-use event::{AppEvent, Event, EventHandler};
+use event::{AppEvent, Event, EventHandler, FileSystemChangeKind};
 use ui::{ContainerIdMaps, Finding, FindingKind, HostMapping, IdMapEntry};
 
+use crate::fs;
 use crate::fs::monitor::MonitorHandler;
-use crate::fs::{ETC_SUBGID, ETC_SUBUID};
 use crate::proxmox::lxc;
 
 #[derive(Debug)]
 pub struct App {
     is_running: bool,
+    lxc_config_dir: PathBuf,
     _monitor: MonitorHandler,
     event_handler: EventHandler,
     findings: Vec<Finding>,
@@ -36,73 +39,23 @@ impl App {
     pub fn new(lxc_config_dir: &Path) -> Self {
         let event_handler = EventHandler::new();
 
+        let (fs_tx, fs_rx) = mpsc::channel();
+        let app_tx = event_handler.sender();
+
+        thread::spawn(|| fs::reader::start(fs_rx, app_tx));
+
         Self {
             is_running: true,
-            _monitor: MonitorHandler::new(event_handler.sender(), lxc_config_dir).expect("Fixme"),
+            _monitor: MonitorHandler::new(event_handler.sender(), fs_tx, lxc_config_dir).expect("Fixme"),
+            lxc_config_dir: lxc_config_dir.to_path_buf(),
             event_handler,
             findings: Vec::new(),
             selected_finding: None,
             host_mapping: HostMapping {
-                subuid: vec![
-                    IdMapEntry {
-                        kind: "UID".to_string(),
-                        container_id: 0,
-                        host_id: 100000,
-                        size: 65536,
-                    },
-                    IdMapEntry {
-                        kind: "UID".to_string(),
-                        container_id: 65536,
-                        host_id: 100000 + 65536,
-                        size: 4294967295 - 65536,
-                    },
-                ],
-                subgid: vec![
-                    IdMapEntry {
-                        kind: "GID".to_string(),
-                        container_id: 0,
-                        host_id: 100000,
-                        size: 65536,
-                    },
-                    IdMapEntry {
-                        kind: "GID".to_string(),
-                        container_id: 65536,
-                        host_id: 100000 + 65536,
-                        size: 4294967295 - 65536,
-                    },
-                ],
+                subuid: Vec::new(),
+                subgid: Vec::new(),
             },
-            container_mappings: vec![ContainerIdMaps {
-                filename: "100.conf".to_string(),
-                uid_maps: vec![
-                    IdMapEntry {
-                        kind: "UID".to_string(),
-                        container_id: 0,
-                        host_id: 100000,
-                        size: 65536,
-                    },
-                    IdMapEntry {
-                        kind: "UID".to_string(),
-                        container_id: 65536,
-                        host_id: 100000 + 65536,
-                        size: 4294967295 - 65536,
-                    },
-                ],
-                gid_maps: vec![
-                    IdMapEntry {
-                        kind: "GID".to_string(),
-                        container_id: 0,
-                        host_id: 100000,
-                        size: 65536,
-                    },
-                    IdMapEntry {
-                        kind: "GID".to_string(),
-                        container_id: 65536,
-                        host_id: 100000 + 65536,
-                        size: 4294967295 - 65536,
-                    },
-                ],
-            }],
+            container_mappings: Vec::new(),
         }
     }
 
@@ -123,16 +76,11 @@ impl App {
                 _ => {},
             },
             Event::App(app_event) => match app_event {
-                AppEvent::FileSystemChanged(change_kind, path) => {
-                    match path.to_str() {
-                        Some(ETC_SUBUID) => {},
-                        Some(ETC_SUBGID) => {},
-                        Some(conf) => match change_kind {
-                            event::FileSystemChangeKind::Remove => todo!(),
-                            event::FileSystemChangeKind::Update => todo!(),
-                        },
-                        // TODO: Log as warning?
-                        None => return Ok(()),
+                AppEvent::FileSystemChanged(change_kind) => {
+                    // TODO:
+                    match change_kind {
+                        FileSystemChangeKind::Remove(path) => (),
+                        FileSystemChangeKind::Update(path, content) => (),
                     };
 
                     self.evaluate_findings();
@@ -145,6 +93,7 @@ impl App {
 
     /// Findings are re-evaluated based on latest update
     fn evaluate_findings(&mut self) {
+        // Temp mocks:
         self.findings = vec![
             Finding {
                 kind: FindingKind::Good,
@@ -162,6 +111,67 @@ impl App {
                 container_id_mapping_highlights: vec![0, 1],
             },
         ];
+        self.host_mapping = HostMapping {
+            subuid: vec![
+                IdMapEntry {
+                    kind: "UID".to_string(),
+                    container_id: 0,
+                    host_id: 100000,
+                    size: 65536,
+                },
+                IdMapEntry {
+                    kind: "UID".to_string(),
+                    container_id: 65536,
+                    host_id: 100000 + 65536,
+                    size: 4294967295 - 65536,
+                },
+            ],
+            subgid: vec![
+                IdMapEntry {
+                    kind: "GID".to_string(),
+                    container_id: 0,
+                    host_id: 100000,
+                    size: 65536,
+                },
+                IdMapEntry {
+                    kind: "GID".to_string(),
+                    container_id: 65536,
+                    host_id: 100000 + 65536,
+                    size: 4294967295 - 65536,
+                },
+            ],
+        };
+        self.container_mappings = vec![ContainerIdMaps {
+            filename: "100.conf".to_string(),
+            uid_maps: vec![
+                IdMapEntry {
+                    kind: "UID".to_string(),
+                    container_id: 0,
+                    host_id: 100000,
+                    size: 65536,
+                },
+                IdMapEntry {
+                    kind: "UID".to_string(),
+                    container_id: 65536,
+                    host_id: 100000 + 65536,
+                    size: 4294967295 - 65536,
+                },
+            ],
+            gid_maps: vec![
+                IdMapEntry {
+                    kind: "GID".to_string(),
+                    container_id: 0,
+                    host_id: 100000,
+                    size: 65536,
+                },
+                IdMapEntry {
+                    kind: "GID".to_string(),
+                    container_id: 65536,
+                    host_id: 100000 + 65536,
+                    size: 4294967295 - 65536,
+                },
+            ],
+        }];
     }
 
     /// Handles the key events and updates the state of [`App`].
