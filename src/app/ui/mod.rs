@@ -1,9 +1,12 @@
+use crate::proxmox::lxc::Config;
+
 use super::App;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, BorderType, Borders, Cell, Row, Table, Widget};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Row, Table, Widget};
 use std::fmt::Display;
 use std::iter::repeat;
 
@@ -24,6 +27,7 @@ impl Widget for &App {
         let outer_block = Block::bordered()
             .title("Proxmox UnPrivileged Manager")
             .title_alignment(Alignment::Center)
+            .borders(Borders::TOP)
             .border_type(BorderType::Rounded);
 
         outer_block.clone().render(area, buf);
@@ -34,10 +38,41 @@ impl Widget for &App {
             return;
         }
 
+        let &[main_area, footer_area] = &*Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(1)])
+            .split(inner_area)
+        else {
+            unreachable!("Only two areas exist")
+        };
+
+        // Command Bar Footer
+
+        let spans = Line::from(vec![
+            Span::styled("q", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
+            Span::raw("uit  "),
+            Span::styled("h", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
+            Span::raw("elp  "),
+            Span::styled("s", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
+            Span::raw("ettings  "),
+            Span::styled("f", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
+            Span::raw("ix  "),
+            Span::styled(
+                "↑↓",
+                Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Navigate"),
+        ]);
+
+        Paragraph::new(spans)
+            // .style(Style::default().bg(Color::DarkGray))
+            .alignment(Alignment::Center)
+            .render(footer_area, buf);
+
         let &[left_area, right_area] = &*Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(inner_area)
+            .split(main_area)
         else {
             unreachable!("Only two halves exist")
         };
@@ -73,26 +108,27 @@ impl Widget for &App {
 
             host_rows.push(
                 Row::new([
-                    Cell::from(kind),
-                    Cell::from(&*entry.host_user_id),
-                    Cell::from(entry.host_sub_id.to_string()),
-                    Cell::from(entry.host_sub_id_count.to_string()),
-                    Cell::from(format!(
+                    Text::from(kind).alignment(Alignment::Center),
+                    Text::from(&*entry.host_user_id).alignment(Alignment::Center),
+                    Text::from(entry.host_sub_id.to_string()).alignment(Alignment::Center),
+                    Text::from(entry.host_sub_id_count.to_string()).alignment(Alignment::Center),
+                    Text::from(format!(
                         "{} → {}",
                         entry.host_sub_id,
                         entry.host_sub_id + entry.host_sub_id_count
-                    )),
+                    ))
+                    .alignment(Alignment::Center),
                 ])
                 .style(style),
             );
         }
 
         let host_header = Row::new([
-            Cell::from("Kind"),
-            Cell::from("ID"),
-            Cell::from("Sub ID"),
-            Cell::from("Sub ID Size"),
-            Cell::from("Sub ID Range"),
+            Text::from("Kind").alignment(Alignment::Center),
+            Text::from("ID").alignment(Alignment::Center),
+            Text::from("Sub ID").alignment(Alignment::Center),
+            Text::from("Sub ID Size").alignment(Alignment::Center),
+            Text::from("Sub ID Range").alignment(Alignment::Center),
         ])
         .style(Style::default().add_modifier(Modifier::BOLD));
 
@@ -117,11 +153,11 @@ impl Widget for &App {
 
         // ── Container Table ──
         let header = Row::new([
-            Cell::from("Config"),
-            Cell::from("UID Container ID"),
-            Cell::from("UID Host ID"),
-            Cell::from("GID Container ID"),
-            Cell::from("GID Host ID"),
+            Text::from("Config").alignment(Alignment::Center),
+            Text::from("UID Container ID").alignment(Alignment::Center),
+            Text::from("UID Host ID").alignment(Alignment::Center),
+            Text::from("GID Container ID").alignment(Alignment::Center),
+            Text::from("GID Host ID").alignment(Alignment::Center),
         ])
         .style(Style::default().add_modifier(Modifier::BOLD));
 
@@ -143,11 +179,15 @@ impl Widget for &App {
 
                 rows.push(
                     Row::new(vec![
-                        Cell::from(if i == 0 { &*container.filename } else { "" }),
-                        Cell::from(uid.map_or(String::new(), |e| e.host_user_id.to_string())),
-                        Cell::from(uid.map_or(String::new(), |e| e.host_sub_id.to_string())),
-                        Cell::from(gid.map_or(String::new(), |e| e.host_user_id.to_string())),
-                        Cell::from(gid.map_or(String::new(), |e| e.host_sub_id.to_string())),
+                        Text::from(if i == 0 { &*container.filename } else { "" }).alignment(Alignment::Center),
+                        Text::from(uid.map_or(String::new(), |e| e.host_user_id.to_string()))
+                            .alignment(Alignment::Center),
+                        Text::from(uid.map_or(String::new(), |e| e.host_sub_id.to_string()))
+                            .alignment(Alignment::Center),
+                        Text::from(gid.map_or(String::new(), |e| e.host_user_id.to_string()))
+                            .alignment(Alignment::Center),
+                        Text::from(gid.map_or(String::new(), |e| e.host_sub_id.to_string()))
+                            .alignment(Alignment::Center),
                     ])
                     .style(style),
                 );
@@ -155,7 +195,7 @@ impl Widget for &App {
         }
 
         let block = Block::default()
-            .title(format!("Container ID Maps ({:?})", self.lxc_config_dir))
+            .title(format!("Container ID Maps ({})", self.lxc_config_dir.display()))
             .borders(Borders::ALL)
             .title_alignment(Alignment::Center);
         let constraints = [
@@ -184,6 +224,7 @@ pub struct IdMapEntry {
 #[derive(Debug)]
 pub struct ContainerIdMaps {
     pub filename: String,
+    pub config: Config,
     pub uid_maps: Vec<IdMapEntry>,
     pub gid_maps: Vec<IdMapEntry>,
 }

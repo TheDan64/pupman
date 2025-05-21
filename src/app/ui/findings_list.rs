@@ -20,8 +20,9 @@ impl<'a> Widget for FindingsList<'a> {
         // Draw block around the list
         let block = Block::default()
             .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Gray))
             .title("Findings")
-            .border_style(Style::default().fg(Color::Gray));
+            .title_alignment(Alignment::Center);
 
         let inner_area = block.inner(area);
 

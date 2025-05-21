@@ -1,5 +1,6 @@
 use std::fs::read_dir;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::mpsc::{self, Sender};
 use std::thread;
 
@@ -17,7 +18,7 @@ use ui::{ContainerIdMaps, Finding, HostMapping, IdMapEntry};
 use crate::fs;
 use crate::fs::monitor::{MonitorHandler, is_valid_file};
 use crate::fs::subid::{ETC_SUBGID, ETC_SUBUID, SubID};
-use crate::proxmox::lxc;
+use crate::proxmox::lxc::{self, Config};
 
 #[derive(Debug)]
 pub struct App {
@@ -106,18 +107,23 @@ impl App {
         Ok(())
     }
 
-    fn load_container_id_map(&mut self, path: &Path, _content: &str) -> color_eyre::Result<()> {
+    fn load_container_id_map(&mut self, path: &Path, content: &str) -> color_eyre::Result<()> {
         let filename = path
             .file_name()
             .and_then(|f| f.to_str())
             .ok_or_else(|| eyre!("Invalid file name"))?
             .to_string();
 
+        let mut uid_maps = Vec::new();
+        let mut gid_maps = Vec::new();
+        let config = Config::from_str(content)?;
+
         // TODO: Fill in the uid and gid maps
         let container_id_map = ContainerIdMaps {
             filename,
-            uid_maps: Vec::new(),
-            gid_maps: Vec::new(),
+            config,
+            uid_maps,
+            gid_maps,
         };
 
         // TODO: Use a hash map instead
