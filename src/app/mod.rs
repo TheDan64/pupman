@@ -1,7 +1,9 @@
+use std::fs::read_dir;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::mpsc::{self, Sender};
 use std::thread;
 
+use color_eyre::eyre::{OptionExt, eyre};
 use crossterm::event::Event as CrosstermEvent;
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -10,10 +12,11 @@ pub(crate) mod event;
 pub(crate) mod ui;
 
 use event::{AppEvent, Event, EventHandler, FileSystemChangeKind};
-use ui::{ContainerIdMaps, Finding, FindingKind, HostMapping, IdMapEntry};
+use ui::{ContainerIdMaps, Finding, HostMapping, IdMapEntry};
 
 use crate::fs;
-use crate::fs::monitor::MonitorHandler;
+use crate::fs::monitor::{MonitorHandler, is_valid_file};
+use crate::fs::subid::{ETC_SUBGID, ETC_SUBUID, SubID};
 use crate::proxmox::lxc;
 
 #[derive(Debug)]
@@ -26,6 +29,7 @@ pub struct App {
     selected_finding: Option<usize>,
     host_mapping: HostMapping,
     container_mappings: Vec<ContainerIdMaps>,
+    fs_reader_tx: Sender<PathBuf>,
 }
 
 impl Default for App {
@@ -46,6 +50,7 @@ impl App {
 
         Self {
             is_running: true,
+            fs_reader_tx: fs_tx.clone(),
             _monitor: MonitorHandler::new(event_handler.sender(), fs_tx, lxc_config_dir).expect("Fixme"),
             lxc_config_dir: lxc_config_dir.to_path_buf(),
             event_handler,
@@ -61,6 +66,8 @@ impl App {
 
     /// Run the application's main loop.
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
+        self.initialize()?;
+
         while self.is_running {
             terminal.draw(|frame| frame.render_widget(&self, frame.area()))?;
             self.handle_events()?;
@@ -71,16 +78,24 @@ impl App {
     pub fn handle_events(&mut self) -> color_eyre::Result<()> {
         match self.event_handler.next()? {
             Event::Tick => self.tick(),
-            Event::Crossterm(event) => match event {
-                CrosstermEvent::Key(key_event) => self.handle_key_event(key_event)?,
-                _ => {},
+            Event::Crossterm(event) => {
+                if let CrosstermEvent::Key(key_event) = event {
+                    self.handle_key_event(key_event)?;
+                }
             },
             Event::App(app_event) => match app_event {
                 AppEvent::FileSystemChanged(change_kind) => {
-                    // TODO:
                     match change_kind {
-                        FileSystemChangeKind::Remove(path) => (),
-                        FileSystemChangeKind::Update(path, content) => (),
+                        FileSystemChangeKind::Remove(path) => self.unload_container_id_map(&path)?,
+                        FileSystemChangeKind::Update(path, content) => {
+                            if path.starts_with(&self.lxc_config_dir) {
+                                self.load_container_id_map(&path, &content)?;
+                            } else if path == Path::new(ETC_SUBUID) {
+                                self.load_subid(&content, SubID::SubUID)?;
+                            } else if path == Path::new(ETC_SUBGID) {
+                                self.load_subid(&content, SubID::SubGID)?;
+                            }
+                        },
                     };
 
                     self.evaluate_findings();
@@ -91,87 +106,61 @@ impl App {
         Ok(())
     }
 
+    fn load_container_id_map(&mut self, path: &Path, _content: &str) -> color_eyre::Result<()> {
+        let filename = path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .ok_or_else(|| eyre!("Invalid file name"))?
+            .to_string();
+
+        // TODO: Fill in the uid and gid maps
+        let container_id_map = ContainerIdMaps {
+            filename,
+            uid_maps: Vec::new(),
+            gid_maps: Vec::new(),
+        };
+
+        // TODO: Use a hash map instead
+        self.container_mappings.push(container_id_map);
+
+        Ok(())
+    }
+
+    fn unload_container_id_map(&mut self, path: &Path) -> color_eyre::Result<()> {
+        Err(eyre!("TODO: Unload container id map from path: {path:?}"))
+    }
+
+    fn load_subid(&mut self, content: &str, subid: SubID) -> color_eyre::Result<()> {
+        let id_map = parse_subid_map(&content)?;
+
+        match subid {
+            SubID::SubUID => self.host_mapping.subuid = id_map,
+            SubID::SubGID => self.host_mapping.subgid = id_map,
+        }
+
+        Ok(())
+    }
+
+    fn initialize(&mut self) -> color_eyre::Result<()> {
+        self.fs_reader_tx.send(PathBuf::from(ETC_SUBUID))?;
+        self.fs_reader_tx.send(PathBuf::from(ETC_SUBGID))?;
+
+        for entry in read_dir(&self.lxc_config_dir)? {
+            let path = entry?.path();
+
+            if is_valid_file(&path) {
+                self.fs_reader_tx.send(path)?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Findings are re-evaluated based on latest update
     fn evaluate_findings(&mut self) {
-        // Temp mocks:
-        self.findings = vec![
-            Finding {
-                kind: FindingKind::Good,
-                host_mapping_highlights: vec![0, 3],
-                container_id_mapping_highlights: vec![1],
-            },
-            Finding {
-                kind: FindingKind::Bad,
-                host_mapping_highlights: vec![1, 3],
-                container_id_mapping_highlights: vec![0],
-            },
-            Finding {
-                kind: FindingKind::Good,
-                host_mapping_highlights: vec![1],
-                container_id_mapping_highlights: vec![0, 1],
-            },
-        ];
-        self.host_mapping = HostMapping {
-            subuid: vec![
-                IdMapEntry {
-                    kind: "UID".to_string(),
-                    container_id: 0,
-                    host_id: 100000,
-                    size: 65536,
-                },
-                IdMapEntry {
-                    kind: "UID".to_string(),
-                    container_id: 65536,
-                    host_id: 100000 + 65536,
-                    size: 4294967295 - 65536,
-                },
-            ],
-            subgid: vec![
-                IdMapEntry {
-                    kind: "GID".to_string(),
-                    container_id: 0,
-                    host_id: 100000,
-                    size: 65536,
-                },
-                IdMapEntry {
-                    kind: "GID".to_string(),
-                    container_id: 65536,
-                    host_id: 100000 + 65536,
-                    size: 4294967295 - 65536,
-                },
-            ],
-        };
-        self.container_mappings = vec![ContainerIdMaps {
-            filename: "100.conf".to_string(),
-            uid_maps: vec![
-                IdMapEntry {
-                    kind: "UID".to_string(),
-                    container_id: 0,
-                    host_id: 100000,
-                    size: 65536,
-                },
-                IdMapEntry {
-                    kind: "UID".to_string(),
-                    container_id: 65536,
-                    host_id: 100000 + 65536,
-                    size: 4294967295 - 65536,
-                },
-            ],
-            gid_maps: vec![
-                IdMapEntry {
-                    kind: "GID".to_string(),
-                    container_id: 0,
-                    host_id: 100000,
-                    size: 65536,
-                },
-                IdMapEntry {
-                    kind: "GID".to_string(),
-                    container_id: 65536,
-                    host_id: 100000 + 65536,
-                    size: 4294967295 - 65536,
-                },
-            ],
-        }];
+        // TODO: Implement the logic to evaluate findings based on the current state of the application.
+        // This is where you would compare the host mapping with the container mappings and
+        // determine if there are any discrepancies or issues.
     }
 
     /// Handles the key events and updates the state of [`App`].
@@ -226,7 +215,6 @@ impl App {
 
                 self.selected_finding = Some(self.findings.len() - 1);
             },
-            // Other handlers you could add here.
             _ => {},
         }
         Ok(())
@@ -246,4 +234,32 @@ impl App {
     fn selected_finding(&self) -> Option<&Finding> {
         self.selected_finding.and_then(|index| self.findings.get(index))
     }
+}
+
+fn parse_subid_map(content: &str) -> color_eyre::Result<Vec<IdMapEntry>> {
+    let mut id_map = Vec::new();
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let mut iter = trimmed.split(':');
+        let host_user_id = iter.next().ok_or_eyre("user id not found")?.to_owned();
+        let host_sub_id: u32 = iter.next().ok_or_eyre("host sub id not found")?.parse()?;
+        let host_sub_id_count: u32 = iter
+            .next()
+            .ok_or_eyre("host sub id host_sub_id_count not found")?
+            .parse()?;
+
+        id_map.push(IdMapEntry {
+            host_user_id,
+            host_sub_id,
+            host_sub_id_count,
+        });
+    }
+
+    Ok(id_map)
 }

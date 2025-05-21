@@ -5,6 +5,7 @@ use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, BorderType, Borders, Cell, Row, Table, Widget};
 use std::fmt::Display;
+use std::iter::repeat;
 
 mod findings_list;
 
@@ -54,7 +55,14 @@ impl Widget for &App {
         // ── Host Table ──
         let mut host_rows = Vec::new();
 
-        for (i, entry) in host.subuid.iter().chain(host.subgid.iter()).enumerate() {
+        let entries = host
+            .subuid
+            .iter()
+            .zip(repeat("UID"))
+            .chain(host.subgid.iter().zip(repeat("GID")))
+            .enumerate();
+
+        for (i, (entry, kind)) in entries {
             let mut style = Style::default();
 
             if let Some(finding) = selected_finding {
@@ -65,20 +73,37 @@ impl Widget for &App {
 
             host_rows.push(
                 Row::new([
-                    Cell::from(&*entry.kind),
-                    Cell::from(entry.host_id.to_string()),
-                    Cell::from(entry.size.to_string()),
+                    Cell::from(kind),
+                    Cell::from(&*entry.host_user_id),
+                    Cell::from(entry.host_sub_id.to_string()),
+                    Cell::from(entry.host_sub_id_count.to_string()),
+                    Cell::from(format!(
+                        "{} → {}",
+                        entry.host_sub_id,
+                        entry.host_sub_id + entry.host_sub_id_count
+                    )),
                 ])
                 .style(style),
             );
         }
 
-        let host_header = Row::new([Cell::from("Kind"), Cell::from("Host ID"), Cell::from("Size")])
-            .style(Style::default().add_modifier(Modifier::BOLD));
+        let host_header = Row::new([
+            Cell::from("Kind"),
+            Cell::from("ID"),
+            Cell::from("Sub ID"),
+            Cell::from("Sub ID Size"),
+            Cell::from("Sub ID Range"),
+        ])
+        .style(Style::default().add_modifier(Modifier::BOLD));
 
         let host_table = Table::new(
             host_rows,
-            &[Constraint::Length(6), Constraint::Length(12), Constraint::Length(8)],
+            &[
+                // Constraint::Length(4),
+                // Constraint::Length(12),
+                // Constraint::Length(12),
+                // Constraint::Length(12),
+            ],
         )
         .header(host_header)
         .block(
@@ -119,10 +144,10 @@ impl Widget for &App {
                 rows.push(
                     Row::new(vec![
                         Cell::from(if i == 0 { &*container.filename } else { "" }),
-                        Cell::from(uid.map_or(String::new(), |e| e.container_id.to_string())),
-                        Cell::from(uid.map_or(String::new(), |e| e.host_id.to_string())),
-                        Cell::from(gid.map_or(String::new(), |e| e.container_id.to_string())),
-                        Cell::from(gid.map_or(String::new(), |e| e.host_id.to_string())),
+                        Cell::from(uid.map_or(String::new(), |e| e.host_user_id.to_string())),
+                        Cell::from(uid.map_or(String::new(), |e| e.host_sub_id.to_string())),
+                        Cell::from(gid.map_or(String::new(), |e| e.host_user_id.to_string())),
+                        Cell::from(gid.map_or(String::new(), |e| e.host_sub_id.to_string())),
                     ])
                     .style(style),
                 );
@@ -151,10 +176,9 @@ impl Widget for &App {
 // Data structures
 #[derive(Debug)]
 pub struct IdMapEntry {
-    pub kind: String,
-    pub container_id: u32,
-    pub host_id: u32,
-    pub size: u32,
+    pub host_user_id: String,
+    pub host_sub_id: u32,
+    pub host_sub_id_count: u32,
 }
 
 #[derive(Debug)]

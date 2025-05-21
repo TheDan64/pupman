@@ -6,11 +6,10 @@ use notify::{
     Config, Event as NotifyEvent, EventHandler, EventKind, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher,
 };
 
+use super::subid::{ETC_SUBGID, ETC_SUBUID};
 use crate::app::event::{AppEvent, Event, FileSystemChangeKind};
 
-use super::{ETC_SUBGID, ETC_SUBUID};
-
-fn is_valid_file(path: &Path) -> bool {
+pub fn is_valid_file(path: &Path) -> bool {
     if path == Path::new(ETC_SUBGID) || path == Path::new(ETC_SUBUID) {
         return true;
     }
