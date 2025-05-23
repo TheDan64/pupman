@@ -161,6 +161,7 @@ impl Widget for &App {
         .style(Style::default().add_modifier(Modifier::BOLD));
 
         let mut rows = Vec::new();
+        let mut i = 0;
 
         for (filename, config) in configs {
             let mut first = true;
@@ -190,20 +191,34 @@ impl Widget for &App {
                     unreachable!("Invalid ID map entry host sub id count");
                 };
 
-                rows.push(Row::new([
-                    Text::from(filename).alignment(Alignment::Center),
-                    Text::from(if kind == "u" { "UID" } else { "GID" }).alignment(Alignment::Center),
-                    Text::from(host_user_id).alignment(Alignment::Center),
-                    Text::from(host_sub_id.to_string()).alignment(Alignment::Center),
-                    Text::from(host_sub_id_size).alignment(Alignment::Center),
-                    Text::from(format!(
-                        "{} → {}",
-                        host_sub_id,
-                        host_sub_id.parse::<u32>().expect("fixme") + host_sub_id_size.parse::<u32>().expect("fixme")
-                            - 1
-                    ))
-                    .alignment(Alignment::Center),
-                ]));
+                let mut style = Style::default();
+
+                if let Some(finding) = selected_finding {
+                    if finding.lxc_config_mapping_highlights.contains(&i) {
+                        style = style.bg(finding.selected_bg()).fg(Color::Black);
+                    }
+                }
+
+                rows.push(
+                    Row::new([
+                        Text::from(filename).alignment(Alignment::Center),
+                        Text::from(if kind == "u" { "UID" } else { "GID" }).alignment(Alignment::Center),
+                        Text::from(host_user_id).alignment(Alignment::Center),
+                        Text::from(host_sub_id.to_string()).alignment(Alignment::Center),
+                        Text::from(host_sub_id_size).alignment(Alignment::Center),
+                        Text::from(format!(
+                            "{} → {}",
+                            host_sub_id,
+                            host_sub_id.parse::<u32>().expect("fixme")
+                                + host_sub_id_size.parse::<u32>().expect("fixme")
+                                - 1
+                        ))
+                        .alignment(Alignment::Center),
+                    ])
+                    .style(style),
+                );
+
+                i += 1;
             }
         }
 
@@ -252,7 +267,7 @@ pub enum FindingKind {
 pub struct Finding {
     pub kind: FindingKind,
     pub host_mapping_highlights: Vec<usize>,
-    pub container_id_mapping_highlights: Vec<usize>,
+    pub lxc_config_mapping_highlights: Vec<usize>,
 }
 
 impl Finding {

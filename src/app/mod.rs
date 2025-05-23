@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::sync::mpsc::{self, Sender};
 use std::thread;
 
+use color_eyre::config;
 use color_eyre::eyre::{OptionExt, eyre};
 use crossterm::event::Event as CrosstermEvent;
 use indexmap::IndexMap;
@@ -14,7 +15,7 @@ pub(crate) mod event;
 pub(crate) mod ui;
 
 use event::{AppEvent, Event, EventHandler, FileSystemChangeKind};
-use ui::{Finding, HostMapping, IdMapEntry};
+use ui::{Finding, FindingKind, HostMapping, IdMapEntry};
 
 use crate::fs;
 use crate::fs::monitor::{MonitorHandler, is_valid_file};
@@ -155,9 +156,34 @@ impl App {
 
     /// Findings are re-evaluated based on latest update
     fn evaluate_findings(&mut self) {
-        // TODO: Implement the logic to evaluate findings based on the current state of the application.
-        // This is where you would compare the host mapping with the container mappings and
-        // determine if there are any discrepancies or issues.
+        let mut i = 0;
+
+        for (_filename, config) in &self.lxc_configs {
+            for idmap in config.sectionless_idmap() {
+                let mut idmap = idmap.trim().split(' ');
+                let Some(_kind) = idmap.next() else {
+                    unreachable!("Invalid ID map entry kind");
+                };
+                let Some(_host_user_id) = idmap.next() else {
+                    unreachable!("Invalid ID map entry host user id");
+                };
+                let Some(_host_sub_id) = idmap.next() else {
+                    unreachable!("Invalid ID map entry host sub id");
+                };
+                let Some(_host_sub_id_size) = idmap.next() else {
+                    unreachable!("Invalid ID map entry host sub id count");
+                };
+
+                self.findings.push(Finding {
+                    kind: FindingKind::Good,
+                    // FIXME:
+                    host_mapping_highlights: Vec::new(),
+                    lxc_config_mapping_highlights: vec![i],
+                });
+
+                i += 1;
+            }
+        }
     }
 
     /// Handles the key events and updates the state of [`App`].
