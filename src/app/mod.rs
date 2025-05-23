@@ -4,7 +4,6 @@ use std::str::FromStr;
 use std::sync::mpsc::{self, Sender};
 use std::thread;
 
-use color_eyre::config;
 use color_eyre::eyre::{OptionExt, eyre};
 use crossterm::event::Event as CrosstermEvent;
 use indexmap::IndexMap;
@@ -33,6 +32,8 @@ pub struct App {
     host_mapping: HostMapping,
     fs_reader_tx: Sender<PathBuf>,
     lxc_configs: IndexMap<String, Config>,
+    show_fix_popup: bool,
+    show_settings_popup: bool,
 }
 
 impl Default for App {
@@ -64,6 +65,8 @@ impl App {
                 subgid: Vec::new(),
             },
             lxc_configs: IndexMap::new(),
+            show_fix_popup: false,
+            show_settings_popup: false,
         }
     }
 
@@ -188,11 +191,29 @@ impl App {
 
     /// Handles the key events and updates the state of [`App`].
     pub fn handle_key_event(&mut self, key_event: KeyEvent) -> color_eyre::Result<()> {
+        if self.show_fix_popup {
+            if key_event.code == KeyCode::Esc {
+                self.show_fix_popup = false;
+            }
+
+            return Ok(());
+        }
+
         match key_event.code {
-            // TODO: Esc should back out of popups and such rather than quitting
-            KeyCode::Esc | KeyCode::Char('q') => self.event_handler.send(AppEvent::Quit),
+            KeyCode::Char('q') => self.event_handler.send(AppEvent::Quit),
             KeyCode::Char('c' | 'C') if key_event.modifiers == KeyModifiers::CONTROL => {
                 self.event_handler.send(AppEvent::Quit)
+            },
+            KeyCode::Char('f') if !self.show_fix_popup => {
+                if let Some(finding) = self.selected_finding() {
+                    if finding.kind == FindingKind::Bad {
+                        self.show_fix_popup = true;
+                    }
+                }
+            },
+            KeyCode::Esc => {
+                self.show_fix_popup = false;
+                self.show_settings_popup = false;
             },
             KeyCode::Up => {
                 if self.findings.is_empty() {

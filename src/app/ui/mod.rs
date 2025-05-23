@@ -5,6 +5,8 @@ use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Row, Table, Widget};
+use tui_widgets::popup::Popup;
+
 use std::fmt::Display;
 use std::iter::repeat;
 
@@ -39,28 +41,50 @@ impl Widget for &App {
         let &[main_area, footer_area] = &*Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(0), Constraint::Length(1)])
-            .split(inner_area)
+            .split(inner_area.clone())
         else {
             unreachable!("Only two areas exist")
         };
 
         // Command Bar Footer
 
-        let spans = Line::from(vec![
-            Span::styled("q", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
-            Span::raw("uit  "),
-            Span::styled("h", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
-            Span::raw("elp  "),
-            Span::styled("s", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
-            Span::raw("ettings  "),
-            Span::styled("f", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
-            Span::raw("ix  "),
-            Span::styled(
-                "↑↓",
-                Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(" navigate"),
-        ]);
+        let spans = Line::from(if self.show_fix_popup {
+            vec![
+                Span::raw("["),
+                Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+                Span::raw("] Back"),
+            ]
+        } else {
+            // [q] Quit  │  [↑↓] Navigate  [s] Settings  [f] Fix  [l] Logs  │  [Esc] Back
+            let mut items = vec![
+                Span::raw("["),
+                Span::styled("q", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+                Span::raw("] Quit  │  ["),
+                Span::styled("↑↓", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                Span::raw("] Navigate  ["),
+                Span::styled("s", Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)),
+                Span::raw("] Settings  "),
+            ];
+
+            if self.selected_finding().map_or(false, |f| f.kind == FindingKind::Bad) {
+                items.extend([
+                    Span::raw("["),
+                    Span::styled(
+                        "f",
+                        Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw("] Fix  "),
+                ]);
+            }
+
+            items.extend([
+                Span::raw("["),
+                Span::styled("l", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD)),
+                Span::raw("] Logs"),
+            ]);
+
+            items
+        });
 
         Paragraph::new(spans)
             // .style(Style::default().bg(Color::DarkGray))
@@ -207,8 +231,7 @@ impl Widget for &App {
                         Text::from(host_sub_id.to_string()).alignment(Alignment::Center),
                         Text::from(host_sub_id_size).alignment(Alignment::Center),
                         Text::from(format!(
-                            "{} → {}",
-                            host_sub_id,
+                            "{host_sub_id} → {}",
                             host_sub_id.parse::<u32>().expect("fixme")
                                 + host_sub_id_size.parse::<u32>().expect("fixme")
                                 - 1
@@ -240,6 +263,15 @@ impl Widget for &App {
             .render(chunks[1], buf);
 
         FindingsList::new(&self.findings, self.selected_finding).render(right_area, buf);
+
+        if self.show_fix_popup {
+            Popup::new(Text::from("Not yet implemented"))
+                .title("Fix finding")
+                // .style(Style::new().fg(Color::White).bg(Color::DarkGray)) // Normal
+                .style(Style::new().fg(Color::LightRed).bg(Color::Rgb(48, 0, 0))) // Warning
+                // .style(Style::new().fg(Color::LightGreen).bg(Color::Rgb(0, 48, 0))) // Success?
+                .render(inner_area, buf);
+        }
     }
 }
 
@@ -257,7 +289,7 @@ pub struct HostMapping {
     pub subgid: Vec<IdMapEntry>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FindingKind {
     Good,
     Bad,
