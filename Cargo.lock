@@ -896,6 +896,7 @@ dependencies = [
  "crossterm",
  "dirs",
  "etc-passwd",
+ "indexmap",
  "nix",
  "notify",
  "ratatui",

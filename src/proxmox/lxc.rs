@@ -17,11 +17,14 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn sectionless_idmap(&self) -> impl Iterator<Item = &ConfEntry> {
+    pub fn sectionless_idmap(&self) -> impl Iterator<Item = &str> {
         self.entries
             .iter()
             .take_while(|entry| !matches!(entry, ConfEntry::Section(_)))
-            .filter(|entry| matches!(entry, ConfEntry::KeyValue(key, _) if key == "lxc.idmap"))
+            .filter_map(|entry| match entry {
+                ConfEntry::KeyValue(key, value) if key.starts_with("lxc.idmap") => Some(&**value),
+                _ => None,
+            })
     }
 }
 
@@ -163,8 +166,8 @@ lxc.idmap: g 0 1000 3000"#;
     let idmaps = config.sectionless_idmap().collect::<Vec<_>>();
 
     assert_eq!(idmaps.len(), 2);
-    assert!(matches!(idmaps[0], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "u 0 6653600 65536"));
-    assert!(matches!(idmaps[1], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "g 0 6653600 65536"));
+    assert_eq!(idmaps[0], "u 0 6653600 65536");
+    assert_eq!(idmaps[1], "g 0 6653600 65536");
 
     // FIXME:
     // assert_eq!(config.to_string(), content);

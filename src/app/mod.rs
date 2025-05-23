@@ -6,6 +6,7 @@ use std::thread;
 
 use color_eyre::eyre::{OptionExt, eyre};
 use crossterm::event::Event as CrosstermEvent;
+use indexmap::IndexMap;
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -13,7 +14,7 @@ pub(crate) mod event;
 pub(crate) mod ui;
 
 use event::{AppEvent, Event, EventHandler, FileSystemChangeKind};
-use ui::{ContainerIdMaps, Finding, HostMapping, IdMapEntry};
+use ui::{Finding, HostMapping, IdMapEntry};
 
 use crate::fs;
 use crate::fs::monitor::{MonitorHandler, is_valid_file};
@@ -29,8 +30,8 @@ pub struct App {
     findings: Vec<Finding>,
     selected_finding: Option<usize>,
     host_mapping: HostMapping,
-    container_mappings: Vec<ContainerIdMaps>,
     fs_reader_tx: Sender<PathBuf>,
+    lxc_configs: IndexMap<String, Config>,
 }
 
 impl Default for App {
@@ -61,7 +62,7 @@ impl App {
                 subuid: Vec::new(),
                 subgid: Vec::new(),
             },
-            container_mappings: Vec::new(),
+            lxc_configs: IndexMap::new(),
         }
     }
 
@@ -114,20 +115,10 @@ impl App {
             .ok_or_else(|| eyre!("Invalid file name"))?
             .to_string();
 
-        let mut uid_maps = Vec::new();
-        let mut gid_maps = Vec::new();
         let config = Config::from_str(content)?;
 
-        // TODO: Fill in the uid and gid maps
-        let container_id_map = ContainerIdMaps {
-            filename,
-            config,
-            uid_maps,
-            gid_maps,
-        };
-
-        // TODO: Use a hash map instead
-        self.container_mappings.push(container_id_map);
+        self.lxc_configs.insert(filename.clone(), config.clone());
+        // self.lxc_configs.sort_unstable_keys();
 
         Ok(())
     }

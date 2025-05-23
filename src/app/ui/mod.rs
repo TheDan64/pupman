@@ -1,5 +1,3 @@
-use crate::proxmox::lxc::Config;
-
 use super::App;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
@@ -23,7 +21,7 @@ impl Widget for &App {
     // - https://github.com/ratatui/ratatui/tree/master/examples
     fn render(self, area: Rect, buf: &mut Buffer) {
         let host = &self.host_mapping;
-        let containers = &self.container_mappings;
+        let configs = &self.lxc_configs;
         let outer_block = Block::bordered()
             .title("Proxmox UnPrivileged Manager")
             .title_alignment(Alignment::Center)
@@ -61,7 +59,7 @@ impl Widget for &App {
                 "↑↓",
                 Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD),
             ),
-            Span::raw(" Navigate"),
+            Span::raw(" navigate"),
         ]);
 
         Paragraph::new(spans)
@@ -71,7 +69,7 @@ impl Widget for &App {
 
         let &[left_area, right_area] = &*Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
             .split(main_area)
         else {
             unreachable!("Only two halves exist")
@@ -102,7 +100,7 @@ impl Widget for &App {
 
             if let Some(finding) = selected_finding {
                 if finding.host_mapping_highlights.contains(&i) {
-                    style = style.bg(finding.kind.selected_bg()).fg(Color::Black);
+                    style = style.bg(finding.selected_bg()).fg(Color::Black);
                 }
             }
 
@@ -115,7 +113,7 @@ impl Widget for &App {
                     Text::from(format!(
                         "{} → {}",
                         entry.host_sub_id,
-                        entry.host_sub_id + entry.host_sub_id_count
+                        entry.host_sub_id + entry.host_sub_id_count - 1
                     ))
                     .alignment(Alignment::Center),
                 ])
@@ -151,46 +149,61 @@ impl Widget for &App {
 
         host_table.render(chunks[0], buf);
 
-        // ── Container Table ──
+        // ── LXC Config Table ──
         let header = Row::new([
             Text::from("Config").alignment(Alignment::Center),
-            Text::from("UID Container ID").alignment(Alignment::Center),
-            Text::from("UID Host ID").alignment(Alignment::Center),
-            Text::from("GID Container ID").alignment(Alignment::Center),
-            Text::from("GID Host ID").alignment(Alignment::Center),
+            Text::from("Kind").alignment(Alignment::Center),
+            Text::from("ID").alignment(Alignment::Center),
+            Text::from("Sub ID").alignment(Alignment::Center),
+            Text::from("Sub ID Size").alignment(Alignment::Center),
+            Text::from("Sub ID Range").alignment(Alignment::Center),
         ])
         .style(Style::default().add_modifier(Modifier::BOLD));
 
         let mut rows = Vec::new();
 
-        for container in containers {
-            let max = container.uid_maps.len().max(container.gid_maps.len());
+        for (filename, config) in configs {
+            let mut first = true;
 
-            for i in 0..max {
-                let mut style = Style::default();
-                let uid = container.uid_maps.get(i);
-                let gid = container.gid_maps.get(i);
+            // TODO: We should pre-load all important config entries
+            // rather than re-iterating every time.
 
-                if let Some(finding) = selected_finding {
-                    if finding.container_id_mapping_highlights.contains(&i) {
-                        style = style.bg(finding.kind.selected_bg()).fg(Color::Black);
-                    }
-                }
+            for idmap in config.sectionless_idmap() {
+                let filename = if first {
+                    first = false;
+                    filename
+                } else {
+                    ""
+                };
 
-                rows.push(
-                    Row::new(vec![
-                        Text::from(if i == 0 { &*container.filename } else { "" }).alignment(Alignment::Center),
-                        Text::from(uid.map_or(String::new(), |e| e.host_user_id.to_string()))
-                            .alignment(Alignment::Center),
-                        Text::from(uid.map_or(String::new(), |e| e.host_sub_id.to_string()))
-                            .alignment(Alignment::Center),
-                        Text::from(gid.map_or(String::new(), |e| e.host_user_id.to_string()))
-                            .alignment(Alignment::Center),
-                        Text::from(gid.map_or(String::new(), |e| e.host_sub_id.to_string()))
-                            .alignment(Alignment::Center),
-                    ])
-                    .style(style),
-                );
+                let mut idmap = idmap.trim().split(' ');
+                let Some(kind) = idmap.next() else {
+                    unreachable!("Invalid ID map entry kind");
+                };
+                let Some(host_user_id) = idmap.next() else {
+                    unreachable!("Invalid ID map entry host user id");
+                };
+                let Some(host_sub_id) = idmap.next() else {
+                    unreachable!("Invalid ID map entry host sub id");
+                };
+                let Some(host_sub_id_size) = idmap.next() else {
+                    unreachable!("Invalid ID map entry host sub id count");
+                };
+
+                rows.push(Row::new([
+                    Text::from(filename).alignment(Alignment::Center),
+                    Text::from(if kind == "u" { "UID" } else { "GID" }).alignment(Alignment::Center),
+                    Text::from(host_user_id).alignment(Alignment::Center),
+                    Text::from(host_sub_id.to_string()).alignment(Alignment::Center),
+                    Text::from(host_sub_id_size).alignment(Alignment::Center),
+                    Text::from(format!(
+                        "{} → {}",
+                        host_sub_id,
+                        host_sub_id.parse::<u32>().expect("fixme") + host_sub_id_size.parse::<u32>().expect("fixme")
+                            - 1
+                    ))
+                    .alignment(Alignment::Center),
+                ]));
             }
         }
 
@@ -199,15 +212,17 @@ impl Widget for &App {
             .borders(Borders::ALL)
             .title_alignment(Alignment::Center);
         let constraints = [
-            Constraint::Length(20),
-            Constraint::Length(20),
-            Constraint::Length(12),
-            Constraint::Length(20),
-            Constraint::Length(12),
+            // Constraint::Length(20),
+            // Constraint::Length(20),
+            // Constraint::Length(12),
+            // Constraint::Length(20),
+            // Constraint::Length(12),
         ];
-        let table = Table::new(rows, &constraints).header(header).block(block);
 
-        table.render(chunks[1], buf);
+        Table::new(rows, &constraints)
+            .header(header)
+            .block(block)
+            .render(chunks[1], buf);
 
         FindingsList::new(&self.findings, self.selected_finding).render(right_area, buf);
     }
@@ -222,14 +237,6 @@ pub struct IdMapEntry {
 }
 
 #[derive(Debug)]
-pub struct ContainerIdMaps {
-    pub filename: String,
-    pub config: Config,
-    pub uid_maps: Vec<IdMapEntry>,
-    pub gid_maps: Vec<IdMapEntry>,
-}
-
-#[derive(Debug)]
 pub struct HostMapping {
     pub subuid: Vec<IdMapEntry>,
     pub subgid: Vec<IdMapEntry>,
@@ -241,34 +248,34 @@ pub enum FindingKind {
     Bad,
 }
 
-impl FindingKind {
-    fn base_fg(self) -> Color {
-        match self {
+#[derive(Clone, Debug)]
+pub struct Finding {
+    pub kind: FindingKind,
+    pub host_mapping_highlights: Vec<usize>,
+    pub container_id_mapping_highlights: Vec<usize>,
+}
+
+impl Finding {
+    fn base_fg(&self) -> Color {
+        match self.kind {
             FindingKind::Good => Color::Green,
             FindingKind::Bad => Color::Red,
         }
     }
 
-    fn selected_bg(self) -> Color {
-        match self {
+    fn selected_bg(&self) -> Color {
+        match self.kind {
             FindingKind::Good => Color::LightGreen,
             FindingKind::Bad => Color::LightRed,
         }
     }
 
     fn badge(&self) -> &'static str {
-        match self {
+        match self.kind {
             FindingKind::Good => "✅ ",
             FindingKind::Bad => "❌ ",
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct Finding {
-    pub kind: FindingKind,
-    pub host_mapping_highlights: Vec<usize>,
-    pub container_id_mapping_highlights: Vec<usize>,
 }
 
 impl Display for Finding {

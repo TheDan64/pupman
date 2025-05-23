@@ -33,8 +33,8 @@ impl<'a> Widget for FindingsList<'a> {
         for (i, item) in self.findings.iter().take(max).enumerate() {
             let y = inner_area.y + i as u16;
             let is_selected = Some(i) == self.selected;
-            let base_fg = item.kind.base_fg();
-            let selected_bg = item.kind.selected_bg();
+            let base_fg = item.base_fg();
+            let selected_bg = item.selected_bg();
             let (fg, bg) = if is_selected {
                 (Color::Black, selected_bg)
             } else {
@@ -46,7 +46,7 @@ impl<'a> Widget for FindingsList<'a> {
                 Modifier::empty()
             });
             let prefix = if is_selected { "→ " } else { "  " };
-            let badge_content = item.kind.badge();
+            let badge_content = item.badge();
             let bullet = Span::styled(badge_content, Style::default().fg(base_fg));
             let content = Line::from(vec![Span::raw(prefix), bullet, Span::styled(item.to_string(), style)]);
 
