@@ -1,5 +1,5 @@
+use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
 use std::fs::read_dir;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -137,7 +137,7 @@ impl App {
     }
 
     fn load_subid(&mut self, content: &str, subid: SubID) -> color_eyre::Result<()> {
-        let id_map = parse_subid_map(&content)?;
+        let id_map = parse_subid_map(content)?;
 
         match subid {
             SubID::SubUID => self.host_mapping.subuid = id_map,
@@ -212,6 +212,7 @@ impl App {
 
         for (i, (_filename, config)) in self.lxc_configs.iter().enumerate() {
             for (j, idmap) in config.sectionless_idmap().enumerate() {
+                let cfg_pos = i + j;
                 let mut idmap = idmap.trim().split(' ');
                 let Some(kind) = idmap.next() else {
                     unreachable!("Invalid ID map entry kind");
@@ -259,8 +260,6 @@ impl App {
                         continue;
                     }
 
-                    let cfg_pos = i + j;
-
                     if parsed_host_sub_id < mapping.host_sub_id
                         || parsed_host_sub_id >= mapping.host_sub_id + mapping.host_sub_id_count
                         || parsed_host_sub_id + parsed_host_sub_id_size
@@ -268,7 +267,7 @@ impl App {
                     {
                         self.findings.push(Finding {
                             kind: FindingKind::Bad,
-                            message: "LXC config's host sub id starts outside of host mapping range",
+                            message: "LXC config's host sub id range outside of host mapping range",
                             host_mapping_highlights: vec![subid_pos],
                             lxc_config_mapping_highlights: vec![cfg_pos],
                         });

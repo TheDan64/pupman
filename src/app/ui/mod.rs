@@ -41,7 +41,7 @@ impl Widget for &App {
         let &[main_area, footer_area] = &*Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(0), Constraint::Length(1)])
-            .split(inner_area.clone())
+            .split(inner_area)
         else {
             unreachable!("Only two areas exist")
         };
@@ -78,7 +78,7 @@ impl Widget for &App {
                 Span::raw("] Settings  "),
             ];
 
-            if self.selected_finding().map_or(false, |f| f.kind == FindingKind::Bad) {
+            if self.selected_finding().is_some_and(|f| f.kind == FindingKind::Bad) {
                 items.extend([
                     Span::raw("["),
                     Span::styled(
@@ -339,6 +339,6 @@ impl Finding {
 
 impl Display for Finding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.message)
+        f.write_str(self.message)
     }
 }
