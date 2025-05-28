@@ -1,6 +1,6 @@
 # Proxmox UnPrivileged Manager
 
-Pupman is a tool for managing unprivileged lxc containers' gid and uid mappings in Proxmox 8.x.
+Pupman is an unofficial tool (not affiliated with Proxmox) for managing unprivileged lxc containers' gid and uid mappings in Proxmox 8.x.
 The goal is to have one centralized tool for making sure there are no overlapping mappings and
 being able to fix them as well.
 

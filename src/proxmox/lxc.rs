@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Display, Write};
 use std::str::FromStr;
 
 pub const CONF_DIR: &str = "/etc/pve/lxc";
@@ -61,12 +61,16 @@ impl FromStr for Config {
 
 impl Display for Config {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for entry in &self.entries {
+        for (i, entry) in self.entries.iter().enumerate() {
+            if i != 0 {
+                f.write_char('\n')?;
+            }
+
             match entry {
-                ConfEntry::Section(section) => writeln!(f, "[{section}]\n")?,
-                ConfEntry::KeyValue(key, value) => writeln!(f, "{key}: {value}\n")?,
-                ConfEntry::Comment(comment) => writeln!(f, "{comment}\n")?,
-                ConfEntry::EmptyLine => writeln!(f, "\n")?,
+                ConfEntry::Section(section) => write!(f, "[{section}]")?,
+                ConfEntry::KeyValue(key, value) => write!(f, "{key}: {value}")?,
+                ConfEntry::Comment(comment) => write!(f, "{comment}")?,
+                ConfEntry::EmptyLine => {},
             }
         }
 
@@ -169,8 +173,7 @@ lxc.idmap: g 0 1000 3000"#;
     assert_eq!(idmaps[0], "u 0 6653600 65536");
     assert_eq!(idmaps[1], "g 0 6653600 65536");
 
-    // FIXME:
-    // assert_eq!(config.to_string(), content);
+    assert_eq!(config.to_string(), content);
 
     Ok(())
 }
