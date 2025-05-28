@@ -54,6 +54,18 @@ impl Widget for &App {
                 Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
                 Span::raw("] Back"),
             ]
+        } else if self.show_settings_page {
+            vec![
+                Span::raw("["),
+                Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+                Span::raw("] Back"),
+            ]
+        } else if self.show_logs_page {
+            vec![
+                Span::raw("["),
+                Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+                Span::raw("] Back"),
+            ]
         } else {
             // [q] Quit  │  [↑↓] Navigate  [s] Settings  [f] Fix  [l] Logs  │  [Esc] Back
             let mut items = vec![
@@ -87,7 +99,6 @@ impl Widget for &App {
         });
 
         Paragraph::new(spans)
-            // .style(Style::default().bg(Color::DarkGray))
             .alignment(Alignment::Center)
             .render(footer_area, buf);
 
@@ -246,7 +257,7 @@ impl Widget for &App {
         }
 
         let block = Block::default()
-            .title(format!("Container ID Maps ({})", self.lxc_config_dir.display()))
+            .title(format!("LXC ID Maps ({})", self.lxc_config_dir.display()))
             .borders(Borders::ALL)
             .title_alignment(Alignment::Center);
         let constraints = [
@@ -298,6 +309,7 @@ pub enum FindingKind {
 #[derive(Clone, Debug)]
 pub struct Finding {
     pub kind: FindingKind,
+    pub message: &'static str,
     pub host_mapping_highlights: Vec<usize>,
     pub lxc_config_mapping_highlights: Vec<usize>,
 }

@@ -1,3 +1,5 @@
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 use std::fs::read_dir;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -19,6 +21,7 @@ use ui::{Finding, FindingKind, HostMapping, IdMapEntry};
 use crate::fs;
 use crate::fs::monitor::{MonitorHandler, is_valid_file};
 use crate::fs::subid::{ETC_SUBGID, ETC_SUBUID, SubID};
+use crate::linux::{groupname_to_id, username_to_id};
 use crate::proxmox::lxc::{self, Config};
 
 #[derive(Debug)]
@@ -33,7 +36,8 @@ pub struct App {
     fs_reader_tx: Sender<PathBuf>,
     lxc_configs: IndexMap<String, Config>,
     show_fix_popup: bool,
-    show_settings_popup: bool,
+    show_settings_page: bool,
+    show_logs_page: bool,
 }
 
 impl Default for App {
@@ -66,7 +70,8 @@ impl App {
             },
             lxc_configs: IndexMap::new(),
             show_fix_popup: false,
-            show_settings_popup: false,
+            show_settings_page: false,
+            show_logs_page: false,
         }
     }
 
@@ -159,30 +164,97 @@ impl App {
 
     /// Findings are re-evaluated based on latest update
     fn evaluate_findings(&mut self) {
+        self.findings.clear();
+
         let mut i = 0;
+        let mut username_to_id_map = HashMap::new();
+        let mut groupname_to_id_map = HashMap::new();
+        let mut usernames = HashMap::new();
+        let mut groupnames = HashMap::new();
+
+        for (i, mapping) in self.host_mapping.subuid.iter().enumerate() {
+            match usernames.entry(&mapping.host_user_id) {
+                Entry::Occupied(occupancy) => {
+                    let j = *occupancy.get();
+
+                    self.findings.push(Finding {
+                        kind: FindingKind::Bad,
+                        message: "Cannot have multiple entries for the same user",
+                        host_mapping_highlights: vec![j, i],
+                        lxc_config_mapping_highlights: Vec::new(),
+                    });
+                },
+                Entry::Vacant(vacancy) => {
+                    vacancy.insert(i);
+                },
+            };
+        }
+
+        for (i, mapping) in self.host_mapping.subgid.iter().enumerate() {
+            // Offset by the number of preceding gid entries
+            let i = i + self.host_mapping.subuid.len();
+
+            match groupnames.entry(&mapping.host_user_id) {
+                Entry::Occupied(occupancy) => {
+                    let j = *occupancy.get();
+
+                    self.findings.push(Finding {
+                        kind: FindingKind::Bad,
+                        message: "Cannot have multiple entries for the same group",
+                        host_mapping_highlights: vec![j, i],
+                        lxc_config_mapping_highlights: Vec::new(),
+                    });
+                },
+                Entry::Vacant(vacancy) => {
+                    vacancy.insert(i);
+                },
+            };
+        }
 
         for (_filename, config) in &self.lxc_configs {
             for idmap in config.sectionless_idmap() {
                 let mut idmap = idmap.trim().split(' ');
-                let Some(_kind) = idmap.next() else {
+                let Some(kind) = idmap.next() else {
                     unreachable!("Invalid ID map entry kind");
                 };
-                let Some(_host_user_id) = idmap.next() else {
+                let Some(host_id) = idmap.next() else {
                     unreachable!("Invalid ID map entry host user id");
                 };
+                let parsed_host_id = host_id.parse::<u32>().unwrap();
                 let Some(_host_sub_id) = idmap.next() else {
                     unreachable!("Invalid ID map entry host sub id");
                 };
                 let Some(_host_sub_id_size) = idmap.next() else {
                     unreachable!("Invalid ID map entry host sub id count");
                 };
+                let (idmap, mappings, to_id) = if kind == "u" {
+                    (
+                        &mut username_to_id_map,
+                        &*self.host_mapping.subuid,
+                        username_to_id as fn(&str) -> color_eyre::Result<u32>,
+                    )
+                } else if kind == "g" {
+                    (
+                        &mut groupname_to_id_map,
+                        &*self.host_mapping.subgid,
+                        groupname_to_id as _,
+                    )
+                } else {
+                    unreachable!("Invalid sub id kind")
+                };
 
-                self.findings.push(Finding {
-                    kind: FindingKind::Good,
-                    // FIXME:
-                    host_mapping_highlights: Vec::new(),
-                    lxc_config_mapping_highlights: vec![i],
-                });
+                for mapping in mappings {
+                    let host_id = match idmap.entry(&mapping.host_user_id) {
+                        Entry::Occupied(id) => *id.get(),
+                        Entry::Vacant(vacancy) => *vacancy.insert(to_id(&mapping.host_user_id).expect("fixme")),
+                    };
+
+                    if host_id != parsed_host_id {
+                        continue;
+                    }
+
+                    // Matched
+                }
 
                 i += 1;
             }
@@ -199,6 +271,22 @@ impl App {
             return Ok(());
         }
 
+        if self.show_settings_page {
+            if key_event.code == KeyCode::Esc {
+                self.show_settings_page = false;
+            }
+
+            return Ok(());
+        }
+
+        if self.show_logs_page {
+            if key_event.code == KeyCode::Esc {
+                self.show_logs_page = false;
+            }
+
+            return Ok(());
+        }
+
         match key_event.code {
             KeyCode::Char('q') => self.event_handler.send(AppEvent::Quit),
             KeyCode::Char('c' | 'C') if key_event.modifiers == KeyModifiers::CONTROL => {
@@ -210,10 +298,6 @@ impl App {
                         self.show_fix_popup = true;
                     }
                 }
-            },
-            KeyCode::Esc => {
-                self.show_fix_popup = false;
-                self.show_settings_popup = false;
             },
             KeyCode::Up => {
                 if self.findings.is_empty() {
