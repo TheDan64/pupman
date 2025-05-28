@@ -339,9 +339,6 @@ impl Finding {
 
 impl Display for Finding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            FindingKind::Good => write!(f, "Good Finding"),
-            FindingKind::Bad => write!(f, "Bad Finding"),
-        }
+        f.write_str(&self.message)
     }
 }

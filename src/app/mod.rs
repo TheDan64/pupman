@@ -166,7 +166,6 @@ impl App {
     fn evaluate_findings(&mut self) {
         self.findings.clear();
 
-        let mut i = 0;
         let mut username_to_id_map = HashMap::new();
         let mut groupname_to_id_map = HashMap::new();
         let mut usernames = HashMap::new();
@@ -211,8 +210,8 @@ impl App {
             };
         }
 
-        for (_filename, config) in &self.lxc_configs {
-            for idmap in config.sectionless_idmap() {
+        for (i, (_filename, config)) in self.lxc_configs.iter().enumerate() {
+            for (j, idmap) in config.sectionless_idmap().enumerate() {
                 let mut idmap = idmap.trim().split(' ');
                 let Some(kind) = idmap.next() else {
                     unreachable!("Invalid ID map entry kind");
@@ -221,12 +220,14 @@ impl App {
                     unreachable!("Invalid ID map entry host user id");
                 };
                 let parsed_host_id = host_id.parse::<u32>().unwrap();
-                let Some(_host_sub_id) = idmap.next() else {
+                let Some(host_sub_id) = idmap.next() else {
                     unreachable!("Invalid ID map entry host sub id");
                 };
-                let Some(_host_sub_id_size) = idmap.next() else {
+                let parsed_host_sub_id = host_sub_id.parse::<u32>().unwrap();
+                let Some(host_sub_id_size) = idmap.next() else {
                     unreachable!("Invalid ID map entry host sub id count");
                 };
+                let parsed_host_sub_id_size = host_sub_id_size.parse::<u32>().unwrap();
                 let (idmap, mappings, to_id) = if kind == "u" {
                     (
                         &mut username_to_id_map,
@@ -243,7 +244,12 @@ impl App {
                     unreachable!("Invalid sub id kind")
                 };
 
-                for mapping in mappings {
+                for (k, mapping) in mappings.iter().enumerate() {
+                    let subid_pos = if kind == "u" {
+                        k
+                    } else {
+                        k + self.host_mapping.subuid.len()
+                    };
                     let host_id = match idmap.entry(&mapping.host_user_id) {
                         Entry::Occupied(id) => *id.get(),
                         Entry::Vacant(vacancy) => *vacancy.insert(to_id(&mapping.host_user_id).expect("fixme")),
@@ -253,10 +259,21 @@ impl App {
                         continue;
                     }
 
-                    // Matched
-                }
+                    let cfg_pos = i + j;
 
-                i += 1;
+                    if parsed_host_sub_id < mapping.host_sub_id
+                        || parsed_host_sub_id >= mapping.host_sub_id + mapping.host_sub_id_count
+                        || parsed_host_sub_id + parsed_host_sub_id_size
+                            >= mapping.host_sub_id + mapping.host_sub_id_count
+                    {
+                        self.findings.push(Finding {
+                            kind: FindingKind::Bad,
+                            message: "LXC config's host sub id starts outside of host mapping range",
+                            host_mapping_highlights: vec![subid_pos],
+                            lxc_config_mapping_highlights: vec![cfg_pos],
+                        });
+                    }
+                }
             }
         }
     }
