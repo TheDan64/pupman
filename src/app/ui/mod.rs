@@ -22,8 +22,8 @@ impl Widget for &App {
     // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
     // - https://github.com/ratatui/ratatui/tree/master/examples
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let host = &self.host_mapping;
-        let configs = &self.lxc_configs;
+        let host = &self.state.host_mapping;
+        let configs = &self.state.lxc_configs;
         let outer_block = Block::bordered()
             .title("Proxmox UnPrivileged Manager")
             .title_alignment(Alignment::Center)
@@ -48,19 +48,19 @@ impl Widget for &App {
 
         // Command Bar Footer
 
-        let spans = Line::from(if self.show_fix_popup {
+        let spans = Line::from(if self.state.show_fix_popup {
             vec![
                 Span::raw("["),
                 Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
                 Span::raw("] Back"),
             ]
-        } else if self.show_settings_page {
+        } else if self.state.show_settings_page {
             vec![
                 Span::raw("["),
                 Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
                 Span::raw("] Back"),
             ]
-        } else if self.show_logs_page {
+        } else if self.state.show_logs_page {
             vec![
                 Span::raw("["),
                 Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
@@ -273,9 +273,9 @@ impl Widget for &App {
             .block(block)
             .render(chunks[1], buf);
 
-        FindingsList::new(&self.findings, self.selected_finding).render(right_area, buf);
+        FindingsList::new(&self.state.findings, self.state.selected_finding).render(right_area, buf);
 
-        if self.show_fix_popup {
+        if self.state.show_fix_popup {
             Popup::new(Text::from("Not yet implemented"))
                 .title("Fix finding")
                 // .style(Style::new().fg(Color::White).bg(Color::DarkGray)) // Normal

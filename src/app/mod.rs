@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use std::fs::read_dir;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -8,36 +6,29 @@ use std::thread;
 
 use color_eyre::eyre::{OptionExt, eyre};
 use crossterm::event::Event as CrosstermEvent;
-use indexmap::IndexMap;
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 pub(crate) mod event;
+mod state;
 pub(crate) mod ui;
 
 use event::{AppEvent, Event, EventHandler, FileSystemChangeKind};
-use ui::{Finding, FindingKind, HostMapping, IdMapEntry};
+use state::State;
+use ui::{Finding, FindingKind, IdMapEntry};
 
 use crate::fs;
 use crate::fs::monitor::{MonitorHandler, is_valid_file};
 use crate::fs::subid::{ETC_SUBGID, ETC_SUBUID, SubID};
-use crate::linux::{groupname_to_id, username_to_id};
 use crate::proxmox::lxc::{self, Config};
 
 #[derive(Debug)]
 pub struct App {
-    is_running: bool,
     lxc_config_dir: PathBuf,
     _monitor: MonitorHandler,
     event_handler: EventHandler,
-    findings: Vec<Finding>,
-    selected_finding: Option<usize>,
-    host_mapping: HostMapping,
     fs_reader_tx: Sender<PathBuf>,
-    lxc_configs: IndexMap<String, Config>,
-    show_fix_popup: bool,
-    show_settings_page: bool,
-    show_logs_page: bool,
+    state: State,
 }
 
 impl Default for App {
@@ -57,21 +48,11 @@ impl App {
         thread::spawn(|| fs::reader::start(fs_rx, app_tx));
 
         Self {
-            is_running: true,
             fs_reader_tx: fs_tx.clone(),
             _monitor: MonitorHandler::new(event_handler.sender(), fs_tx, lxc_config_dir).expect("Fixme"),
             lxc_config_dir: lxc_config_dir.to_path_buf(),
             event_handler,
-            findings: Vec::new(),
-            selected_finding: None,
-            host_mapping: HostMapping {
-                subuid: Vec::new(),
-                subgid: Vec::new(),
-            },
-            lxc_configs: IndexMap::new(),
-            show_fix_popup: false,
-            show_settings_page: false,
-            show_logs_page: false,
+            state: State::default(),
         }
     }
 
@@ -79,7 +60,7 @@ impl App {
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
         self.initialize()?;
 
-        while self.is_running {
+        while self.state.is_running {
             terminal.draw(|frame| frame.render_widget(&self, frame.area()))?;
             self.handle_events()?;
         }
@@ -109,7 +90,7 @@ impl App {
                         },
                     };
 
-                    self.evaluate_findings();
+                    self.state.evaluate_findings();
                 },
                 AppEvent::Quit => self.quit(),
             },
@@ -126,8 +107,8 @@ impl App {
 
         let config = Config::from_str(content)?;
 
-        self.lxc_configs.insert(filename.clone(), config.clone());
-        // self.lxc_configs.sort_unstable_keys();
+        self.state.lxc_configs.insert(filename.clone(), config.clone());
+        // self.state.lxc_configs.sort_unstable_keys();
 
         Ok(())
     }
@@ -140,8 +121,8 @@ impl App {
         let id_map = parse_subid_map(content)?;
 
         match subid {
-            SubID::SubUID => self.host_mapping.subuid = id_map,
-            SubID::SubGID => self.host_mapping.subgid = id_map,
+            SubID::SubUID => self.state.host_mapping.subuid = id_map,
+            SubID::SubGID => self.state.host_mapping.subgid = id_map,
         }
 
         Ok(())
@@ -162,142 +143,27 @@ impl App {
         Ok(())
     }
 
-    /// Findings are re-evaluated based on latest update
-    fn evaluate_findings(&mut self) {
-        self.findings.clear();
-
-        let mut username_to_id_map = HashMap::new();
-        let mut groupname_to_id_map = HashMap::new();
-        let mut usernames = HashMap::new();
-        let mut groupnames = HashMap::new();
-
-        for (i, mapping) in self.host_mapping.subuid.iter().enumerate() {
-            match usernames.entry(&mapping.host_user_id) {
-                Entry::Occupied(occupancy) => {
-                    let j = *occupancy.get();
-
-                    self.findings.push(Finding {
-                        kind: FindingKind::Bad,
-                        message: "Cannot have multiple entries for the same user",
-                        host_mapping_highlights: vec![j, i],
-                        lxc_config_mapping_highlights: Vec::new(),
-                    });
-                },
-                Entry::Vacant(vacancy) => {
-                    vacancy.insert(i);
-                },
-            };
-        }
-
-        for (i, mapping) in self.host_mapping.subgid.iter().enumerate() {
-            // Offset by the number of preceding gid entries
-            let i = i + self.host_mapping.subuid.len();
-
-            match groupnames.entry(&mapping.host_user_id) {
-                Entry::Occupied(occupancy) => {
-                    let j = *occupancy.get();
-
-                    self.findings.push(Finding {
-                        kind: FindingKind::Bad,
-                        message: "Cannot have multiple entries for the same group",
-                        host_mapping_highlights: vec![j, i],
-                        lxc_config_mapping_highlights: Vec::new(),
-                    });
-                },
-                Entry::Vacant(vacancy) => {
-                    vacancy.insert(i);
-                },
-            };
-        }
-
-        for (i, (_filename, config)) in self.lxc_configs.iter().enumerate() {
-            for (j, idmap) in config.sectionless_idmap().enumerate() {
-                let cfg_pos = i + j;
-                let mut idmap = idmap.trim().split(' ');
-                let Some(kind) = idmap.next() else {
-                    unreachable!("Invalid ID map entry kind");
-                };
-                let Some(host_id) = idmap.next() else {
-                    unreachable!("Invalid ID map entry host user id");
-                };
-                let parsed_host_id = host_id.parse::<u32>().unwrap();
-                let Some(host_sub_id) = idmap.next() else {
-                    unreachable!("Invalid ID map entry host sub id");
-                };
-                let parsed_host_sub_id = host_sub_id.parse::<u32>().unwrap();
-                let Some(host_sub_id_size) = idmap.next() else {
-                    unreachable!("Invalid ID map entry host sub id count");
-                };
-                let parsed_host_sub_id_size = host_sub_id_size.parse::<u32>().unwrap();
-                let (idmap, mappings, to_id) = if kind == "u" {
-                    (
-                        &mut username_to_id_map,
-                        &*self.host_mapping.subuid,
-                        username_to_id as fn(&str) -> color_eyre::Result<u32>,
-                    )
-                } else if kind == "g" {
-                    (
-                        &mut groupname_to_id_map,
-                        &*self.host_mapping.subgid,
-                        groupname_to_id as _,
-                    )
-                } else {
-                    unreachable!("Invalid sub id kind")
-                };
-
-                for (k, mapping) in mappings.iter().enumerate() {
-                    let subid_pos = if kind == "u" {
-                        k
-                    } else {
-                        k + self.host_mapping.subuid.len()
-                    };
-                    let host_id = match idmap.entry(&mapping.host_user_id) {
-                        Entry::Occupied(id) => *id.get(),
-                        Entry::Vacant(vacancy) => *vacancy.insert(to_id(&mapping.host_user_id).expect("fixme")),
-                    };
-
-                    if host_id != parsed_host_id {
-                        continue;
-                    }
-
-                    if parsed_host_sub_id < mapping.host_sub_id
-                        || parsed_host_sub_id >= mapping.host_sub_id + mapping.host_sub_id_count
-                        || parsed_host_sub_id + parsed_host_sub_id_size
-                            >= mapping.host_sub_id + mapping.host_sub_id_count
-                    {
-                        self.findings.push(Finding {
-                            kind: FindingKind::Bad,
-                            message: "LXC config's host sub id range outside of host mapping range",
-                            host_mapping_highlights: vec![subid_pos],
-                            lxc_config_mapping_highlights: vec![cfg_pos],
-                        });
-                    }
-                }
-            }
-        }
-    }
-
     /// Handles the key events and updates the state of [`App`].
     pub fn handle_key_event(&mut self, key_event: KeyEvent) -> color_eyre::Result<()> {
-        if self.show_fix_popup {
+        if self.state.show_fix_popup {
             if key_event.code == KeyCode::Esc {
-                self.show_fix_popup = false;
+                self.state.show_fix_popup = false;
             }
 
             return Ok(());
         }
 
-        if self.show_settings_page {
+        if self.state.show_settings_page {
             if key_event.code == KeyCode::Esc {
-                self.show_settings_page = false;
+                self.state.show_settings_page = false;
             }
 
             return Ok(());
         }
 
-        if self.show_logs_page {
+        if self.state.show_logs_page {
             if key_event.code == KeyCode::Esc {
-                self.show_logs_page = false;
+                self.state.show_logs_page = false;
             }
 
             return Ok(());
@@ -308,56 +174,56 @@ impl App {
             KeyCode::Char('c' | 'C') if key_event.modifiers == KeyModifiers::CONTROL => {
                 self.event_handler.send(AppEvent::Quit)
             },
-            KeyCode::Char('f') if !self.show_fix_popup => {
+            KeyCode::Char('f') if !self.state.show_fix_popup => {
                 if let Some(finding) = self.selected_finding() {
                     if finding.kind == FindingKind::Bad {
-                        self.show_fix_popup = true;
+                        self.state.show_fix_popup = true;
                     }
                 }
             },
             KeyCode::Up => {
-                if self.findings.is_empty() {
+                if self.state.findings.is_empty() {
                     return Ok(());
                 }
 
-                if let Some(index) = self.selected_finding {
+                if let Some(index) = self.state.selected_finding {
                     if index > 0 {
-                        self.selected_finding = Some(index - 1);
+                        self.state.selected_finding = Some(index - 1);
                     } else {
-                        self.selected_finding = None;
+                        self.state.selected_finding = None;
                     }
                 } else {
-                    self.selected_finding = Some(self.findings.len() - 1);
+                    self.state.selected_finding = Some(self.state.findings.len() - 1);
                 }
             },
             KeyCode::Down => {
-                if self.findings.is_empty() {
+                if self.state.findings.is_empty() {
                     return Ok(());
                 }
 
-                if let Some(index) = self.selected_finding {
-                    if index < self.findings.len() - 1 {
-                        self.selected_finding = Some(index + 1);
+                if let Some(index) = self.state.selected_finding {
+                    if index < self.state.findings.len() - 1 {
+                        self.state.selected_finding = Some(index + 1);
                     } else {
-                        self.selected_finding = None;
+                        self.state.selected_finding = None;
                     }
                 } else {
-                    self.selected_finding = Some(0);
+                    self.state.selected_finding = Some(0);
                 }
             },
             KeyCode::PageUp => {
-                if self.findings.is_empty() {
+                if self.state.findings.is_empty() {
                     return Ok(());
                 }
 
-                self.selected_finding = Some(0);
+                self.state.selected_finding = Some(0);
             },
             KeyCode::PageDown => {
-                if self.findings.is_empty() {
+                if self.state.findings.is_empty() {
                     return Ok(());
                 }
 
-                self.selected_finding = Some(self.findings.len() - 1);
+                self.state.selected_finding = Some(self.state.findings.len() - 1);
             },
             _ => {},
         }
@@ -372,11 +238,13 @@ impl App {
 
     /// Set running to false to quit the application.
     pub fn quit(&mut self) {
-        self.is_running = false;
+        self.state.is_running = false;
     }
 
     fn selected_finding(&self) -> Option<&Finding> {
-        self.selected_finding.and_then(|index| self.findings.get(index))
+        self.state
+            .selected_finding
+            .and_then(|index| self.state.findings.get(index))
     }
 }
 

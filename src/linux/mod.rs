@@ -29,3 +29,13 @@ pub fn groupname_to_id(groupname: &str) -> color_eyre::Result<u32> {
     let id_str = std::str::from_utf8(&output.stdout).wrap_err("Failed to parse id output")?;
     id_str.trim().parse().wrap_err("Failed to parse group ID")
 }
+
+#[test]
+fn test_username_to_id() {
+    assert_eq!(username_to_id("root").unwrap(), 0);
+}
+
+#[test]
+fn test_groupname_to_id() {
+    assert_eq!(groupname_to_id("root").unwrap(), 0);
+}
