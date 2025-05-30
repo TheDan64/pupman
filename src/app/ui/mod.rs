@@ -25,7 +25,7 @@ impl Widget for &App {
         let host = &self.state.host_mapping;
         let configs = &self.state.lxc_configs;
         let outer_block = Block::bordered()
-            .title("Proxmox UnPrivileged Manager")
+            .title("LXC ID Manager")
             .title_alignment(Alignment::Center)
             .borders(Borders::TOP)
             .border_type(BorderType::Rounded);
@@ -257,7 +257,7 @@ impl Widget for &App {
         }
 
         let block = Block::default()
-            .title(format!("LXC ID Maps ({})", self.lxc_config_dir.display()))
+            .title(format!("LXC ID Maps ({})", self.metadata.lxc_config_dir.display()))
             .borders(Borders::ALL)
             .title_alignment(Alignment::Center);
         let constraints = [

@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 
 use super::ui::{Finding, FindingKind, HostMapping};
 use crate::linux::{groupname_to_id, username_to_id};
-use crate::proxmox::lxc::Config;
+use crate::lxc::Config;
 
 #[cfg(test)]
 mod tests;

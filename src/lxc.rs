@@ -1,8 +1,6 @@
 use std::fmt::{Display, Write};
 use std::str::FromStr;
 
-pub const CONF_DIR: &str = "/etc/pve/lxc";
-
 #[derive(Clone, Debug)]
 pub enum ConfEntry {
     Section(String),

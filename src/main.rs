@@ -1,31 +1,25 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use color_eyre::eyre::{Context, eyre};
+use color_eyre::eyre::Context;
 use lxcidman::app::App;
-use lxcidman::proxmox::lxc;
-use lxcidman::proxmox::pveversion::PVEVersion;
+use lxcidman::metadata::Metadata;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
     /// Sets a custom lxc config directory
-    #[arg(short = 'c', long, value_name = "DIR", default_value_os = lxc::CONF_DIR)]
-    lxc_config: PathBuf,
+    #[arg(short = 'c', long, value_name = "DIR")]
+    lxc_config: Option<PathBuf>,
 }
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
 
     let cli = Cli::parse();
-    let ver = PVEVersion::find().wrap_err("Failed to determine pve version")?;
-
-    if ver.major != 8 {
-        return Err(eyre!("Unsupported PVE version: {}", ver.major));
-    }
-
+    let md = Metadata::collect(cli.lxc_config).wrap_err("Failed to collect system metadata")?;
     let terminal = ratatui::init();
-    let result = App::new(&cli.lxc_config).run(terminal);
+    let result = App::new(md).run(terminal);
     ratatui::restore();
     result
 }

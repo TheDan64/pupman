@@ -20,28 +20,23 @@ use ui::{Finding, FindingKind, IdMapEntry};
 use crate::fs;
 use crate::fs::monitor::{MonitorHandler, is_valid_file};
 use crate::fs::subid::{ETC_SUBGID, ETC_SUBUID, SubID};
-use crate::proxmox::lxc::{self, Config};
+use crate::lxc::Config;
+use crate::metadata::Metadata;
 
 #[derive(Debug)]
 pub struct App {
-    lxc_config_dir: PathBuf,
+    metadata: Metadata,
+    // infra: Infrastructure,
     _monitor: MonitorHandler,
     event_handler: EventHandler,
     fs_reader_tx: Sender<PathBuf>,
     state: State,
 }
 
-impl Default for App {
-    fn default() -> Self {
-        Self::new(Path::new(lxc::CONF_DIR))
-    }
-}
-
 impl App {
     /// Constructs a new instance of [`App`].
-    pub fn new(lxc_config_dir: &Path) -> Self {
+    pub fn new(metadata: Metadata) -> Self {
         let event_handler = EventHandler::new();
-
         let (fs_tx, fs_rx) = mpsc::channel();
         let app_tx = event_handler.sender();
 
@@ -49,8 +44,8 @@ impl App {
 
         Self {
             fs_reader_tx: fs_tx.clone(),
-            _monitor: MonitorHandler::new(event_handler.sender(), fs_tx, lxc_config_dir).expect("Fixme"),
-            lxc_config_dir: lxc_config_dir.to_path_buf(),
+            _monitor: MonitorHandler::new(event_handler.sender(), fs_tx, &metadata.lxc_config_dir).expect("Fixme"),
+            metadata,
             event_handler,
             state: State::default(),
         }
@@ -80,7 +75,7 @@ impl App {
                     match change_kind {
                         FileSystemChangeKind::Remove(path) => self.unload_container_id_map(&path)?,
                         FileSystemChangeKind::Update(path, content) => {
-                            if path.starts_with(&self.lxc_config_dir) {
+                            if path.starts_with(&self.metadata.lxc_config_dir) {
                                 self.load_container_id_map(&path, &content)?;
                             } else if path == Path::new(ETC_SUBUID) {
                                 self.load_subid(&content, SubID::SubUID)?;
@@ -132,7 +127,7 @@ impl App {
         self.fs_reader_tx.send(PathBuf::from(ETC_SUBUID))?;
         self.fs_reader_tx.send(PathBuf::from(ETC_SUBGID))?;
 
-        for entry in read_dir(&self.lxc_config_dir)? {
+        for entry in read_dir(&self.metadata.lxc_config_dir)? {
             let path = entry?.path();
 
             if is_valid_file(&path) {
