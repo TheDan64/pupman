@@ -1,9 +1,9 @@
 [package]
 authors = ["Daniel Kolsoi <thadan64@gmail.com>"]
-description = ""
+description = "An unprivileged LXC container id mapping tool."
 edition = "2024"
 license = "Apache-2.0"
-name = "pupman"
+name = "lxcidman"
 readme = "README.md"
 version = "0.1.0"
 

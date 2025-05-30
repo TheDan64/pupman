@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use color_eyre::eyre::{Context, eyre};
-use pupman::app::App;
-use pupman::proxmox::lxc;
-use pupman::proxmox::pveversion::PVEVersion;
+use lxcidman::app::App;
+use lxcidman::proxmox::lxc;
+use lxcidman::proxmox::pveversion::PVEVersion;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
