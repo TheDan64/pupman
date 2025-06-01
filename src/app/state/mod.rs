@@ -182,5 +182,7 @@ impl State {
                 }
             }
         }
+
+        self.findings.sort_by_key(|f| f.kind != FindingKind::Bad);
     }
 }
