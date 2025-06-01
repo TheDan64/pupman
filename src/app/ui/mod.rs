@@ -51,26 +51,23 @@ impl Widget for &App {
         let spans = Line::from(if self.state.show_fix_popup {
             // [Esc] Back
             vec![
-                Span::raw("["),
                 Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
-                Span::raw("] Back"),
+                Span::raw(": Back"),
             ]
         } else if self.state.show_settings_page {
             vec![
-                Span::raw("["),
                 Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
-                Span::raw("] Back"),
+                Span::raw(": Back"),
             ]
         } else if self.state.show_logs_page {
             vec![
-                Span::raw("["),
                 Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
-                Span::raw("] Back"),
+                Span::raw(": Back"),
             ]
         } else {
-            // [q] Quit  │  [↑↓] Navigate  [e] Explain  [f] Fix  |  [s] Settings  [l] Logs
+            // Esc: Quit  │  ↑↓: Navigate  e: Explain  f: Fix  |  s: Settings  l: Logs
             let mut items = vec![
-                Span::styled("q", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+                Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
                 Span::raw(": Quit  ║  "),
                 Span::styled(
                     "↑↓",

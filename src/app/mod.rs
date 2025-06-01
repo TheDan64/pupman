@@ -165,7 +165,9 @@ impl App {
         }
 
         match key_event.code {
-            KeyCode::Char('q') => self.event_handler.send(AppEvent::Quit),
+            // TODO: Prompt for confirmation before quitting. Esc should cancel the prompt.
+            // Enter or y to confirm quitting.
+            KeyCode::Esc => self.event_handler.send(AppEvent::Quit),
             KeyCode::Char('c' | 'C') if key_event.modifiers == KeyModifiers::CONTROL => {
                 self.event_handler.send(AppEvent::Quit)
             },
