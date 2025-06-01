@@ -177,7 +177,7 @@ impl Widget for &App {
         .header(host_header)
         .block(
             Block::default()
-                .title("Host Root Mappings (/etc/subuid /etc/subgid)")
+                .title("Host Mappings (/etc/subuid /etc/subgid)")
                 .borders(Borders::ALL)
                 .title_alignment(Alignment::Center),
         );
@@ -257,7 +257,7 @@ impl Widget for &App {
         }
 
         let block = Block::default()
-            .title(format!("LXC ID Maps ({})", self.metadata.lxc_config_dir.display()))
+            .title(format!("LXC Mappings ({})", self.metadata.lxc_config_dir.display()))
             .borders(Borders::ALL)
             .title_alignment(Alignment::Center);
         let constraints = [

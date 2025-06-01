@@ -4,7 +4,7 @@ use color_eyre::eyre::eyre;
 
 const PVE_CONF_DIR: &str = "/etc/pve/lxc";
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Metadata {
     pub lxc_config_dir: PathBuf,
     pub is_pve: bool,

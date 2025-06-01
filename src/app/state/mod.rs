@@ -5,6 +5,7 @@ use indexmap::IndexMap;
 use super::ui::{Finding, FindingKind, HostMapping};
 use crate::linux::{groupname_to_id, username_to_id};
 use crate::lxc::Config;
+use crate::metadata::Metadata;
 
 #[cfg(test)]
 mod tests;
@@ -41,7 +42,7 @@ impl Default for State {
 
 impl State {
     /// Findings are re-evaluated based on latest update
-    pub fn evaluate_findings(&mut self) {
+    pub fn evaluate_findings(&mut self, metadata: &Metadata) {
         self.findings.clear();
 
         let mut username_to_id_map = HashMap::new();
@@ -54,12 +55,15 @@ impl State {
                 Entry::Occupied(occupancy) => {
                     let j = *occupancy.get();
 
-                    self.findings.push(Finding {
-                        kind: FindingKind::Bad,
-                        message: "Cannot have multiple entries for the same user",
-                        host_mapping_highlights: vec![j, i],
-                        lxc_config_mapping_highlights: Vec::new(),
-                    });
+                    // If this is a Proxmox VE environment, we cannot have multiple entries for the same user
+                    if metadata.is_pve {
+                        self.findings.push(Finding {
+                            kind: FindingKind::Bad,
+                            message: "Cannot have multiple entries for the same user",
+                            host_mapping_highlights: vec![j, i],
+                            lxc_config_mapping_highlights: Vec::new(),
+                        });
+                    }
                 },
                 Entry::Vacant(vacancy) => {
                     vacancy.insert(i);
@@ -75,12 +79,15 @@ impl State {
                 Entry::Occupied(occupancy) => {
                     let j = *occupancy.get();
 
-                    self.findings.push(Finding {
-                        kind: FindingKind::Bad,
-                        message: "Cannot have multiple entries for the same group",
-                        host_mapping_highlights: vec![j, i],
-                        lxc_config_mapping_highlights: Vec::new(),
-                    });
+                    // If this is a Proxmox VE environment, we cannot have multiple entries for the same group
+                    if metadata.is_pve {
+                        self.findings.push(Finding {
+                            kind: FindingKind::Bad,
+                            message: "Cannot have multiple entries for the same group",
+                            host_mapping_highlights: vec![j, i],
+                            lxc_config_mapping_highlights: Vec::new(),
+                        });
+                    }
                 },
                 Entry::Vacant(vacancy) => {
                     vacancy.insert(i);
@@ -139,13 +146,19 @@ impl State {
                     }
 
                     if parsed_host_sub_id < mapping.host_sub_id
-                        || parsed_host_sub_id >= mapping.host_sub_id + mapping.host_sub_id_count
+                        || parsed_host_sub_id > mapping.host_sub_id + mapping.host_sub_id_count
                         || parsed_host_sub_id + parsed_host_sub_id_size
-                            >= mapping.host_sub_id + mapping.host_sub_id_count
+                            > mapping.host_sub_id + mapping.host_sub_id_count
                     {
+                        let message = if kind == "u" {
+                            "LXC config's host sub uid range outside of host mapping range"
+                        } else {
+                            "LXC config's host sub gid range outside of host mapping range"
+                        };
+
                         self.findings.push(Finding {
                             kind: FindingKind::Bad,
-                            message: "LXC config's host sub id range outside of host mapping range",
+                            message,
                             host_mapping_highlights: vec![subid_pos],
                             lxc_config_mapping_highlights: vec![cfg_pos],
                         });

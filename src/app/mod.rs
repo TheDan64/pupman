@@ -85,7 +85,7 @@ impl App {
                         },
                     };
 
-                    self.state.evaluate_findings();
+                    self.state.evaluate_findings(&self.metadata);
                 },
                 AppEvent::Quit => self.quit(),
             },
