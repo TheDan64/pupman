@@ -70,32 +70,30 @@ impl Widget for &App {
         } else {
             // [q] Quit  │  [↑↓] Navigate  [e] Explain  [f] Fix  |  [s] Settings  [l] Logs
             let mut items = vec![
-                Span::raw("["),
                 Span::styled("q", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
-                Span::raw("] Quit  │  ["),
+                Span::raw(": Quit  ║  "),
                 Span::styled("↑↓", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::raw("] Navigate  "),
+                Span::raw(": Navigate  "),
             ];
 
             if self.selected_finding().is_some_and(|f| f.kind == FindingKind::Bad) {
                 items.extend([
-                    Span::raw("["),
                     Span::styled("e", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
-                    Span::raw("] Explain  ["),
+                    Span::raw(": Explain  "),
                     Span::styled(
                         "f",
                         Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD),
                     ),
-                    Span::raw("] Fix  "),
+                    Span::raw(": Fix  "),
                 ]);
             }
 
             items.extend([
-                Span::raw("│  ["),
+                Span::raw("║  "),
                 Span::styled("s", Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)),
-                Span::raw("] Settings  ["),
+                Span::raw(": Settings  "),
                 Span::styled("l", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD)),
-                Span::raw("] Logs"),
+                Span::raw(": Logs"),
             ]);
 
             items
