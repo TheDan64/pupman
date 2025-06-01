@@ -45,7 +45,7 @@ impl<'a> Widget for FindingsList<'a> {
             } else {
                 Modifier::empty()
             });
-            let prefix = if is_selected { "→ " } else { "  " };
+            let prefix = if is_selected { "▶ " } else { "  " };
             let badge_content = item.badge();
             let bullet = Span::styled(badge_content, Style::default().fg(base_fg));
             let content = Line::from(vec![Span::raw(prefix), bullet, Span::styled(item.to_string(), style)]);
