@@ -196,15 +196,14 @@ impl Widget for &App {
         .style(Style::default().add_modifier(Modifier::BOLD));
 
         let mut rows = Vec::new();
-        let mut i = 0;
 
-        for (filename, config) in configs {
+        for (i, (filename, config)) in configs.iter().enumerate() {
             let mut first = true;
 
             // TODO: We should pre-load all important config entries
             // rather than re-iterating every time.
 
-            for idmap in config.sectionless_idmap() {
+            for (j, idmap) in config.sectionless_idmap().enumerate() {
                 let filename = if first {
                     first = false;
                     filename
@@ -229,7 +228,7 @@ impl Widget for &App {
                 let mut style = Style::default();
 
                 if let Some(finding) = selected_finding {
-                    if finding.lxc_config_mapping_highlights.contains(&i) {
+                    if finding.lxc_config_mapping_highlights.contains(&(i + j)) {
                         style = style.bg(finding.selected_bg()).fg(Color::Black);
                     }
                 }
@@ -251,8 +250,6 @@ impl Widget for &App {
                     ])
                     .style(style),
                 );
-
-                i += 1;
             }
         }
 

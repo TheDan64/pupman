@@ -59,7 +59,7 @@ impl State {
                     if metadata.is_pve {
                         self.findings.push(Finding {
                             kind: FindingKind::Bad,
-                            message: "Cannot have multiple entries for the same user",
+                            message: "[PVE] Cannot have multiple entries for the same user",
                             host_mapping_highlights: vec![j, i],
                             lxc_config_mapping_highlights: Vec::new(),
                         });
@@ -83,7 +83,7 @@ impl State {
                     if metadata.is_pve {
                         self.findings.push(Finding {
                             kind: FindingKind::Bad,
-                            message: "Cannot have multiple entries for the same group",
+                            message: "[PVE] Cannot have multiple entries for the same group",
                             host_mapping_highlights: vec![j, i],
                             lxc_config_mapping_highlights: Vec::new(),
                         });

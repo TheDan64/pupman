@@ -45,7 +45,7 @@ fn test_duplicate_username_not_allowed_in_subid() {
     assert_eq!(state.findings[0].kind, FindingKind::Bad);
     assert_eq!(
         state.findings[0].message,
-        "Cannot have multiple entries for the same user"
+        "[PVE] Cannot have multiple entries for the same user"
     );
     assert_eq!(state.findings[0].host_mapping_highlights, vec![0, 1]);
     assert_eq!(state.findings[0].lxc_config_mapping_highlights, Vec::new());
@@ -59,7 +59,7 @@ fn test_duplicate_username_not_allowed_in_subid() {
     assert_eq!(state.findings[0].kind, FindingKind::Bad);
     assert_eq!(
         state.findings[0].message,
-        "Cannot have multiple entries for the same group"
+        "[PVE] Cannot have multiple entries for the same group"
     );
     assert_eq!(state.findings[0].host_mapping_highlights, vec![0, 1]);
     assert_eq!(state.findings[0].lxc_config_mapping_highlights, Vec::new());
