@@ -95,6 +95,22 @@ impl State {
             };
         }
 
+        if metadata.is_pve
+            && self
+                .findings
+                .iter()
+                .find(|f| f.message.starts_with("[PVE] Cannot have multiple entries for the same"))
+                .is_none()
+        {
+            self.findings.push(Finding {
+                kind: FindingKind::Good,
+                message: "[PVE] No duplicate ids found in subuid/subgid mappings",
+                // TODO: Highlight all entries?
+                host_mapping_highlights: Vec::new(),
+                lxc_config_mapping_highlights: Vec::new(),
+            });
+        }
+
         for (i, (_filename, config)) in self.lxc_configs.iter().enumerate() {
             for (j, idmap) in config.sectionless_idmap().enumerate() {
                 let cfg_pos = i + j;

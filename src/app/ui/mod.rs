@@ -49,6 +49,7 @@ impl Widget for &App {
         // Command Bar Footer
 
         let spans = Line::from(if self.state.show_fix_popup {
+            // [Esc] Back
             vec![
                 Span::raw("["),
                 Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
@@ -67,20 +68,20 @@ impl Widget for &App {
                 Span::raw("] Back"),
             ]
         } else {
-            // [q] Quit  │  [↑↓] Navigate  [s] Settings  [f] Fix  [l] Logs  │  [Esc] Back
+            // [q] Quit  │  [↑↓] Navigate  [e] Explain  [f] Fix  |  [s] Settings  [l] Logs
             let mut items = vec![
                 Span::raw("["),
                 Span::styled("q", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
                 Span::raw("] Quit  │  ["),
                 Span::styled("↑↓", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::raw("] Navigate  ["),
-                Span::styled("s", Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)),
-                Span::raw("] Settings  "),
+                Span::raw("] Navigate  "),
             ];
 
             if self.selected_finding().is_some_and(|f| f.kind == FindingKind::Bad) {
                 items.extend([
                     Span::raw("["),
+                    Span::styled("e", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
+                    Span::raw("] Explain  ["),
                     Span::styled(
                         "f",
                         Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD),
@@ -90,7 +91,9 @@ impl Widget for &App {
             }
 
             items.extend([
-                Span::raw("["),
+                Span::raw("│  ["),
+                Span::styled("s", Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)),
+                Span::raw("] Settings  ["),
                 Span::styled("l", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD)),
                 Span::raw("] Logs"),
             ]);
