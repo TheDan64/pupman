@@ -72,17 +72,22 @@ impl Widget for &App {
             let mut items = vec![
                 Span::styled("q", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
                 Span::raw(": Quit  ║  "),
-                Span::styled("↑↓", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "↑↓",
+                    Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD),
+                ),
                 Span::raw(": Navigate  "),
             ];
 
             if self.selected_finding().is_some_and(|f| f.kind == FindingKind::Bad) {
                 items.extend([
-                    Span::styled("e", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
+                    Span::styled("e", Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)),
                     Span::raw(": Explain  "),
                     Span::styled(
                         "f",
-                        Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD),
+                        Style::default()
+                            .fg(Color::Rgb(255, 102, 0))
+                            .add_modifier(Modifier::BOLD),
                     ),
                     Span::raw(": Fix  "),
                 ]);
@@ -90,9 +95,9 @@ impl Widget for &App {
 
             items.extend([
                 Span::raw("║  "),
-                Span::styled("s", Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)),
+                Span::styled("s", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
                 Span::raw(": Settings  "),
-                Span::styled("l", Style::default().fg(Color::LightBlue).add_modifier(Modifier::BOLD)),
+                Span::styled("l", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
                 Span::raw(": Logs"),
             ]);
 
