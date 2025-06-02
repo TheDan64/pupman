@@ -24,6 +24,17 @@ impl Config {
                 _ => None,
             })
     }
+
+    pub fn sectionless_rootfs(&self) -> Option<&str> {
+        self.entries
+            .iter()
+            .take_while(|entry| !matches!(entry, ConfEntry::Section(_)))
+            .filter_map(|entry| match entry {
+                ConfEntry::KeyValue(key, value) if key.starts_with("rootfs") => Some(&**value),
+                _ => None,
+            })
+            .next()
+    }
 }
 
 impl FromStr for Config {

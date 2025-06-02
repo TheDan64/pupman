@@ -30,6 +30,29 @@ pub fn groupname_to_id(groupname: &str) -> color_eyre::Result<u32> {
     id_str.trim().parse().wrap_err("Failed to parse group ID")
 }
 
+pub fn zfs_volume_to_mountpoint(volume: &str) -> color_eyre::Result<String> {
+    let output = std::process::Command::new("zfs")
+        .arg("get")
+        .arg("-H")
+        .arg("-o")
+        .arg("value")
+        .arg("mountpoint")
+        .arg(volume)
+        .output()
+        .wrap_err("Failed to execute zfs command")?;
+
+    if !output.status.success() {
+        return Err(eyre!("zfs volume to mountpoint command failed"));
+    }
+
+    let mountpoint = std::str::from_utf8(&output.stdout)
+        .wrap_err("Failed to parse zfs output")?
+        .trim()
+        .to_string();
+
+    Ok(mountpoint)
+}
+
 #[test]
 fn test_username_to_id() {
     assert_eq!(username_to_id("root").unwrap(), 0);
