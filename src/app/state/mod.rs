@@ -181,6 +181,8 @@ impl State {
                     }
                 }
             }
+
+            if let Some(_rootfs_value) = config.sectionless_rootfs() {}
         }
 
         self.findings.sort_by_key(|f| f.kind != FindingKind::Bad);

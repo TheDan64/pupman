@@ -87,6 +87,28 @@ impl Display for Config {
     }
 }
 
+fn parse_rootfs_value(value: &str) -> Option<(&str, &str)> {
+    let mut iter = value.split(':');
+    let storage_id = iter.next()?;
+    let rest = iter.next()?;
+    let volume_id = rest.split(',').next()?;
+
+    Some((storage_id, volume_id))
+}
+
+#[test]
+fn test_parse_rootfs_value() {
+    assert_eq!(
+        parse_rootfs_value("local-zfs:subvol-100-disk-0,size=4G"),
+        Some(("local-zfs", "subvol-100-disk-0"))
+    );
+    assert_eq!(
+        parse_rootfs_value("local-zfs:subvol-100-disk-0"),
+        Some(("local-zfs", "subvol-100-disk-0"))
+    );
+    assert_eq!(parse_rootfs_value("local-zfs"), None);
+}
+
 #[test]
 fn test_config_to_from_str() -> color_eyre::Result<()> {
     let content = r#"arch: amd64

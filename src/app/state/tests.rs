@@ -24,7 +24,8 @@ fn test_duplicate_username_not_allowed_in_subid() {
 
     state.evaluate_findings(&pve_md);
 
-    assert!(state.findings.is_empty());
+    assert_eq!(state.findings.len(), 1);
+    assert_eq!(state.findings[0].kind, FindingKind::Good);
 
     state.host_mapping.subuid = vec![
         IdMapEntry {
@@ -68,22 +69,22 @@ fn test_duplicate_username_not_allowed_in_subid() {
 #[test]
 fn test_subid_out_of_range() {
     let config = r#"
-lxc.idmap = u 1000 10000 65000
-lxc.idmap = g 1000 10000 65000
+lxc.idmap = u 0 10000 65000
+lxc.idmap = g 0 10000 65000
 "#;
     let config2 = r#"
-lxc.idmap = u 1000 10000 65001
-lxc.idmap = g 1000 10000 65001
+lxc.idmap = u 0 10000 65001
+lxc.idmap = g 0 10000 65001
 "#;
     let mut state = State {
         host_mapping: HostMapping {
             subuid: vec![IdMapEntry {
-                host_user_id: "1000".into(),
+                host_user_id: "0".into(),
                 host_sub_id: 10000,
                 host_sub_id_count: 65000,
             }],
             subgid: vec![IdMapEntry {
-                host_user_id: "1000".into(),
+                host_user_id: "0".into(),
                 host_sub_id: 10000,
                 host_sub_id_count: 65000,
             }],
