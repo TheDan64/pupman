@@ -15,6 +15,16 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn sectionlesss_is_unprivileged(&self) -> bool {
+        self.entries
+            .iter()
+            .take_while(|entry| !matches!(entry, ConfEntry::Section(_)))
+            .any(|entry| match entry {
+                ConfEntry::KeyValue(key, value) => key == "unprivileged" && value == "1",
+                _ => false,
+            })
+    }
+
     pub fn sectionless_idmap(&self) -> impl Iterator<Item = &str> {
         self.entries
             .iter()

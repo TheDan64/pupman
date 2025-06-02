@@ -1,6 +1,7 @@
 use std::collections::{HashMap, hash_map::Entry};
 
 use indexmap::IndexMap;
+use tui_logger::TuiWidgetState;
 
 use super::ui::{Finding, FindingKind, HostMapping};
 use crate::linux::{groupname_to_id, username_to_id};
@@ -10,7 +11,6 @@ use crate::metadata::Metadata;
 #[cfg(test)]
 mod tests;
 
-#[derive(Debug)]
 pub struct State {
     pub is_running: bool,
     pub findings: Vec<Finding>,
@@ -20,6 +20,7 @@ pub struct State {
     pub show_fix_popup: bool,
     pub show_settings_page: bool,
     pub show_logs_page: bool,
+    pub logger_page_state: TuiWidgetState,
 }
 
 impl Default for State {
@@ -36,6 +37,7 @@ impl Default for State {
             show_fix_popup: false,
             show_settings_page: false,
             show_logs_page: false,
+            logger_page_state: TuiWidgetState::default(),
         }
     }
 }

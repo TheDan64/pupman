@@ -1,4 +1,5 @@
 use super::App;
+use logs_page::LogsPage;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -11,6 +12,8 @@ use std::fmt::Display;
 use std::iter::repeat;
 
 mod findings_list;
+mod footer;
+mod logs_page;
 
 use findings_list::FindingsList;
 
@@ -38,13 +41,20 @@ impl Widget for &App {
             return;
         }
 
-        let &[main_area, footer_area] = &*Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Min(0), Constraint::Length(1)])
-            .split(inner_area)
-        else {
-            unreachable!("Only two areas exist")
-        };
+        if self.state.show_logs_page {
+            LogsPage::new(&self.state.logger_page_state).render(inner_area, buf);
+            return;
+        }
+
+        if self.state.show_settings_page {
+            // Render settings page
+            Paragraph::new("Settings page is not yet implemented")
+                .alignment(Alignment::Center)
+                .render(inner_area, buf);
+            return;
+        }
+
+        let [main_area, footer_area] = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(inner_area);
 
         // Command Bar Footer
 

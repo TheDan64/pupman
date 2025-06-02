@@ -15,6 +15,7 @@ pub(crate) mod ui;
 
 use event::{AppEvent, Event, EventHandler, FileSystemChangeKind};
 use state::State;
+use tui_logger::TuiWidgetEvent;
 use ui::{Finding, FindingKind, IdMapEntry};
 
 use crate::fs;
@@ -23,7 +24,6 @@ use crate::fs::subid::{ETC_SUBGID, ETC_SUBUID, SubID};
 use crate::lxc::Config;
 use crate::metadata::Metadata;
 
-#[derive(Debug)]
 pub struct App {
     metadata: Metadata,
     // infra: Infrastructure,
@@ -140,32 +140,53 @@ impl App {
 
     /// Handles the key events and updates the state of [`App`].
     pub fn handle_key_event(&mut self, key_event: KeyEvent) -> color_eyre::Result<()> {
+        // If the fix popup is shown, handle the key events for the fix popup.
         if self.state.show_fix_popup {
-            if key_event.code == KeyCode::Esc {
-                self.state.show_fix_popup = false;
+            match key_event.code {
+                KeyCode::Esc => self.state.show_fix_popup = false,
+                _ => {},
             }
 
             return Ok(());
         }
 
+        // If the settings page is shown, handle the key events for the settings page.
         if self.state.show_settings_page {
-            if key_event.code == KeyCode::Esc {
-                self.state.show_settings_page = false;
+            match key_event.code {
+                KeyCode::Esc => self.state.show_settings_page = false,
+                _ => {},
             }
 
             return Ok(());
         }
 
+        // If the logs page is shown, handle the key events for the logger page.
         if self.state.show_logs_page {
-            if key_event.code == KeyCode::Esc {
-                self.state.show_logs_page = false;
+            let state = &self.state.logger_page_state;
+
+            match key_event.code {
+                KeyCode::Esc => self.state.show_logs_page = false,
+                KeyCode::Char(' ') => state.transition(TuiWidgetEvent::SpaceKey),
+                KeyCode::Char('q') => state.transition(TuiWidgetEvent::EscapeKey),
+                KeyCode::PageUp => state.transition(TuiWidgetEvent::PrevPageKey),
+                KeyCode::PageDown => state.transition(TuiWidgetEvent::NextPageKey),
+                KeyCode::Up => state.transition(TuiWidgetEvent::UpKey),
+                KeyCode::Down => state.transition(TuiWidgetEvent::DownKey),
+                KeyCode::Left => state.transition(TuiWidgetEvent::LeftKey),
+                KeyCode::Right => state.transition(TuiWidgetEvent::RightKey),
+                KeyCode::Char('+') => state.transition(TuiWidgetEvent::PlusKey),
+                KeyCode::Char('-') => state.transition(TuiWidgetEvent::MinusKey),
+                KeyCode::Char('h') => state.transition(TuiWidgetEvent::HideKey),
+                KeyCode::Char('f') => state.transition(TuiWidgetEvent::FocusKey),
+                _ => {},
             }
 
             return Ok(());
         }
 
+        // Handle the key events for the main application.
         match key_event.code {
-            // TODO: Prompt for confirmation before quitting. Esc should cancel the prompt.
+            // TODO: Prompt for confirmation before quitting. Esc should cancel the prompt for consistency.
             // Enter or y to confirm quitting.
             KeyCode::Esc => self.event_handler.send(AppEvent::Quit),
             KeyCode::Char('c' | 'C') if key_event.modifiers == KeyModifiers::CONTROL => {
@@ -177,6 +198,12 @@ impl App {
                         self.state.show_fix_popup = true;
                     }
                 }
+            },
+            KeyCode::Char('l') => {
+                self.state.show_logs_page = true;
+            },
+            KeyCode::Char('s') => {
+                self.state.show_settings_page = true;
             },
             KeyCode::Up => {
                 if self.state.findings.is_empty() {
