@@ -3,7 +3,7 @@ use std::fs::{self};
 use std::os::unix::fs::MetadataExt;
 
 use indexmap::IndexMap;
-use log::error;
+use log::{debug, error};
 use tui_logger::TuiWidgetState;
 
 use super::ui::{Finding, FindingKind, HostMapping};
@@ -198,6 +198,7 @@ impl State {
 
                     if let Some(metadata) = &rootfs_metadata {
                         if kind == "u" && metadata.uid() != host_id {
+                            debug!("{} uid {} does not match host mapping", metadata.uid(), host_id);
                             self.findings.push(Finding {
                                 kind: FindingKind::Bad,
                                 message: "Rootfs uid does not match host mapping",
@@ -208,6 +209,7 @@ impl State {
                         }
 
                         if kind == "g" && metadata.gid() != host_id {
+                            debug!("{} gid {} does not match host mapping", metadata.gid(), host_id);
                             self.findings.push(Finding {
                                 kind: FindingKind::Bad,
                                 message: "Rootfs gid does not match host mapping",

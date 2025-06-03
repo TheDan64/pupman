@@ -3,7 +3,7 @@ use footer::{Footer, FooterItem};
 use logs_page::LogsPage;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Text;
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Row, Table, Widget};
@@ -87,21 +87,13 @@ impl Widget for &App {
 
         Footer::new(&items).render(footer_area, buf);
 
-        let &[left_area, right_area] = &*Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
-            .split(main_area)
-        else {
-            unreachable!("Only two halves exist")
-        };
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3 + (host.subgid.len() + host.subuid.len()) as u16),
-                Constraint::Min(0),
-            ])
-            .split(left_area);
+        let [left_area, right_area] =
+            Layout::horizontal([Constraint::Percentage(75), Constraint::Percentage(25)]).areas(main_area);
+        let [host_area, container_area] = Layout::vertical([
+            Constraint::Length(3 + (host.subgid.len() + host.subuid.len()) as u16),
+            Constraint::Min(2),
+        ])
+        .areas(left_area);
 
         let selected_finding = self.selected_finding();
 
@@ -167,7 +159,7 @@ impl Widget for &App {
                 .title_alignment(Alignment::Center),
         );
 
-        host_table.render(chunks[0], buf);
+        host_table.render(host_area, buf);
 
         // ── LXC Config Table ──
         let header = Row::new([
@@ -257,7 +249,7 @@ impl Widget for &App {
         Table::new(rows, &constraints)
             .header(header)
             .block(block)
-            .render(chunks[1], buf);
+            .render(container_area, buf);
 
         FindingsList::new(&self.state.findings, self.state.selected_finding).render(right_area, buf);
 
