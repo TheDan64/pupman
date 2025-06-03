@@ -1,4 +1,6 @@
 use std::collections::{HashMap, hash_map::Entry};
+use std::fs::{self};
+use std::os::unix::fs::MetadataExt;
 
 use indexmap::IndexMap;
 use log::error;
@@ -119,6 +121,23 @@ impl State {
                 continue;
             }
 
+            let rootfs_metadata = config.sectionless_rootfs().and_then(|rootfs_value| {
+                let path = match rootfs_value_to_path(rootfs_value) {
+                    Ok(path) => path,
+                    Err(err) => {
+                        error!("Failed to convert rootfs value {rootfs_value} to path: {err}");
+                        return None;
+                    },
+                };
+                match fs::metadata(&path) {
+                    Ok(metadata) => Some(metadata),
+                    Err(err) => {
+                        error!("Failed to get metadata for path {path:?}: {err}");
+                        None
+                    },
+                }
+            });
+
             for (j, idmap) in config.sectionless_idmap().enumerate() {
                 let cfg_pos = i + j;
                 let mut idmap = idmap.trim().split(' ');
@@ -161,11 +180,42 @@ impl State {
                     };
                     let host_id = match idmap.entry(&mapping.host_user_id) {
                         Entry::Occupied(id) => *id.get(),
-                        Entry::Vacant(vacancy) => *vacancy.insert(to_id(&mapping.host_user_id).expect("fixme")),
+                        Entry::Vacant(vacancy) => {
+                            let id = match to_id(&mapping.host_user_id) {
+                                Ok(id) => id,
+                                Err(err) => {
+                                    error!("Failed to parse id for {kind} {}: {err:?}", mapping.host_user_id);
+                                    continue;
+                                },
+                            };
+                            *vacancy.insert(id)
+                        },
                     };
 
                     if host_id != parsed_host_id {
                         continue;
+                    }
+
+                    if let Some(metadata) = &rootfs_metadata {
+                        if kind == "u" && metadata.uid() != host_id {
+                            self.findings.push(Finding {
+                                kind: FindingKind::Bad,
+                                message: "Rootfs uid does not match host mapping",
+                                host_mapping_highlights: Vec::new(),
+                                lxc_config_mapping_highlights: vec![cfg_pos],
+                                // TODO: Highlight rootfs listing?
+                            });
+                        }
+
+                        if kind == "g" && metadata.gid() != host_id {
+                            self.findings.push(Finding {
+                                kind: FindingKind::Bad,
+                                message: "Rootfs gid does not match host mapping",
+                                host_mapping_highlights: Vec::new(),
+                                lxc_config_mapping_highlights: vec![cfg_pos],
+                                // TODO: Highlight rootfs listing?
+                            });
+                        }
                     }
 
                     if parsed_host_sub_id < mapping.host_sub_id
@@ -187,16 +237,6 @@ impl State {
                         });
                     }
                 }
-            }
-
-            if let Some(rootfs_value) = config.sectionless_rootfs() {
-                match rootfs_value_to_path(&rootfs_value) {
-                    Ok(path) => {
-                        // TODO: Check path owner, group ownership, etc. use id methods in case it's a name
-                        path;
-                    },
-                    Err(err) => error!("Failed to convert rootfs value {rootfs_value} to path: {err}"),
-                };
             }
         }
 

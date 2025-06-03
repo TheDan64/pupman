@@ -66,7 +66,7 @@ impl Widget for &App {
             let mut items = vec![
                 FooterItem::Key("Esc", "Quit", Color::LightRed),
                 FooterItem::Div,
-                FooterItem::Key("↑↓", "Navigate", Color::LightRed),
+                FooterItem::Key("↑↓", "Navigate", Color::LightGreen),
             ];
 
             if self.selected_finding().is_some_and(|f| f.kind == FindingKind::Bad) {
