@@ -1,6 +1,8 @@
 use ratatui::prelude::*;
 use tui_logger::{TuiLoggerLevelOutput, TuiLoggerSmartWidget, TuiWidgetState};
 
+use super::footer::{Footer, FooterItem::*};
+
 pub struct LogsPage<'s> {
     state: &'s TuiWidgetState,
 }
@@ -31,5 +33,15 @@ impl Widget for LogsPage<'_> {
             .output_line(true)
             .state(self.state)
             .render(main_area, buf);
+
+        let items = &[
+            Key("Esc", "Back", Color::LightRed),
+            Div,
+            Key("↑↓", "Navigate", Color::LightGreen),
+            Key("h", "Hide", Color::White),
+            Key("f", "Focus", Color::White),
+        ];
+
+        Footer::new(items).render(footer_area, buf);
     }
 }
