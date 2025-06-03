@@ -1,10 +1,11 @@
 use super::App;
+use footer::{Footer, FooterItem};
 use logs_page::LogsPage;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span, Text};
+use ratatui::text::Text;
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Row, Table, Widget};
 use tui_widgets::popup::Popup;
 
@@ -58,62 +59,33 @@ impl Widget for &App {
 
         // Command Bar Footer
 
-        let spans = Line::from(if self.state.show_fix_popup {
-            // [Esc] Back
-            vec![
-                Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
-                Span::raw(": Back"),
-            ]
-        } else if self.state.show_settings_page {
-            vec![
-                Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
-                Span::raw(": Back"),
-            ]
-        } else if self.state.show_logs_page {
-            vec![
-                Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
-                Span::raw(": Back"),
-            ]
+        let items = if self.state.show_fix_popup {
+            vec![FooterItem::Key("Esc", "Back", Color::LightRed)]
         } else {
             // Esc: Quit  │  ↑↓: Navigate  e: Explain  f: Fix  |  s: Settings  l: Logs
             let mut items = vec![
-                Span::styled("Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
-                Span::raw(": Quit  ║  "),
-                Span::styled(
-                    "↑↓",
-                    Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(": Navigate  "),
+                FooterItem::Key("Esc", "Quit", Color::LightRed),
+                FooterItem::Div,
+                FooterItem::Key("↑↓", "Navigate", Color::LightRed),
             ];
 
             if self.selected_finding().is_some_and(|f| f.kind == FindingKind::Bad) {
                 items.extend([
-                    Span::styled("e", Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)),
-                    Span::raw(": Explain  "),
-                    Span::styled(
-                        "f",
-                        Style::default()
-                            .fg(Color::Rgb(255, 102, 0))
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(": Fix  "),
+                    FooterItem::Key("e", "Explain", Color::LightCyan),
+                    FooterItem::Key("f", "Fix", Color::Rgb(255, 102, 0)),
                 ]);
             }
 
             items.extend([
-                Span::raw("║  "),
-                Span::styled("s", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::raw(": Settings  "),
-                Span::styled("l", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::raw(": Logs"),
+                FooterItem::Div,
+                FooterItem::Key("s", "Settings", Color::White),
+                FooterItem::Key("l", "Logs", Color::White),
             ]);
 
             items
-        });
+        };
 
-        Paragraph::new(spans)
-            .alignment(Alignment::Center)
-            .render(footer_area, buf);
+        Footer::new(&items).render(footer_area, buf);
 
         let &[left_area, right_area] = &*Layout::default()
             .direction(Direction::Horizontal)

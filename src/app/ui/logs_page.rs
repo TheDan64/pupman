@@ -17,8 +17,6 @@ impl Widget for LogsPage<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let [main_area, footer_area] = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
 
-        // TODO: Footers widget
-
         TuiLoggerSmartWidget::default()
             .style_error(Style::default().fg(Color::Red))
             .style_debug(Style::default().fg(Color::Green))
