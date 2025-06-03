@@ -1,11 +1,12 @@
 use std::collections::{HashMap, hash_map::Entry};
 
 use indexmap::IndexMap;
+use log::error;
 use tui_logger::TuiWidgetState;
 
 use super::ui::{Finding, FindingKind, HostMapping};
 use crate::linux::{groupname_to_id, username_to_id};
-use crate::lxc::Config;
+use crate::lxc::{Config, rootfs_value_to_path};
 use crate::metadata::Metadata;
 
 #[cfg(test)]
@@ -114,6 +115,10 @@ impl State {
         }
 
         for (i, (_filename, config)) in self.lxc_configs.iter().enumerate() {
+            if !config.sectionlesss_is_unprivileged() {
+                continue;
+            }
+
             for (j, idmap) in config.sectionless_idmap().enumerate() {
                 let cfg_pos = i + j;
                 let mut idmap = idmap.trim().split(' ');
@@ -184,7 +189,15 @@ impl State {
                 }
             }
 
-            if let Some(_rootfs_value) = config.sectionless_rootfs() {}
+            if let Some(rootfs_value) = config.sectionless_rootfs() {
+                match rootfs_value_to_path(&rootfs_value) {
+                    Ok(path) => {
+                        // TODO: Check path owner, group ownership, etc. use id methods in case it's a name
+                        path;
+                    },
+                    Err(err) => error!("Failed to convert rootfs value {rootfs_value} to path: {err}"),
+                };
+            }
         }
 
         self.findings.sort_by_key(|f| f.kind != FindingKind::Bad);

@@ -211,6 +211,10 @@ impl Widget for &App {
         let mut rows = Vec::new();
 
         for (i, (filename, config)) in configs.iter().enumerate() {
+            if !config.sectionlesss_is_unprivileged() {
+                continue;
+            }
+
             let mut first = true;
 
             // TODO: We should pre-load all important config entries

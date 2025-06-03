@@ -1,7 +1,32 @@
+use std::process::Command;
+use std::str;
+use std::{path::PathBuf, process::Output};
+
 use color_eyre::eyre::{Context, eyre};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum LinuxError {
+    #[error("Linux command failed with status code and output: {0}, {1:?}, {2:?}")]
+    Command(std::process::ExitStatus, String, String),
+    #[error("IO failed with error: {0}")]
+    IO(#[from] std::io::Error),
+    #[error("Failed to convert string to utf-8: {0}")]
+    Utf8(#[from] std::str::Utf8Error),
+}
+
+impl From<Output> for LinuxError {
+    fn from(value: Output) -> Self {
+        Self::Command(
+            value.status,
+            String::from_utf8_lossy(&value.stdout).into_owned(),
+            String::from_utf8_lossy(&value.stderr).into_owned(),
+        )
+    }
+}
 
 pub fn username_to_id(username: &str) -> color_eyre::Result<u32> {
-    let output = std::process::Command::new("id")
+    let output = Command::new("id")
         .arg("-u")
         .arg(username)
         .output()
@@ -16,7 +41,7 @@ pub fn username_to_id(username: &str) -> color_eyre::Result<u32> {
 }
 
 pub fn groupname_to_id(groupname: &str) -> color_eyre::Result<u32> {
-    let output = std::process::Command::new("id")
+    let output = Command::new("id")
         .arg("-g")
         .arg(groupname)
         .output()
@@ -30,27 +55,22 @@ pub fn groupname_to_id(groupname: &str) -> color_eyre::Result<u32> {
     id_str.trim().parse().wrap_err("Failed to parse group ID")
 }
 
-pub fn zfs_volume_to_mountpoint(volume: &str) -> color_eyre::Result<String> {
-    let output = std::process::Command::new("zfs")
-        .arg("get")
-        .arg("-H")
-        .arg("-o")
-        .arg("value")
-        .arg("mountpoint")
-        .arg(volume)
-        .output()
-        .wrap_err("Failed to execute zfs command")?;
+pub fn zfs_volume_to_mountpoint(volume: &str) -> Result<Option<PathBuf>, LinuxError> {
+    let output = Command::new("zfs").args(&["list", "-o", "mountpoint"]).output()?;
 
     if !output.status.success() {
-        return Err(eyre!("zfs volume to mountpoint command failed"));
+        return Err(output.into());
     }
 
-    let mountpoint = std::str::from_utf8(&output.stdout)
-        .wrap_err("Failed to parse zfs output")?
-        .trim()
-        .to_string();
+    let stdout = str::from_utf8(&output.stdout)?;
 
-    Ok(mountpoint)
+    for line in stdout.lines() {
+        if line.trim_end().ends_with(volume) {
+            return Ok(Some(PathBuf::from(line.trim_end())));
+        }
+    }
+
+    Ok(None)
 }
 
 #[test]

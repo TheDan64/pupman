@@ -1,5 +1,10 @@
 use std::fmt::{Display, Write};
+use std::path::PathBuf;
 use std::str::FromStr;
+
+use color_eyre::eyre::{ContextCompat, eyre};
+
+use crate::linux::zfs_volume_to_mountpoint;
 
 #[derive(Clone, Debug)]
 pub enum ConfEntry {
@@ -94,6 +99,22 @@ impl Display for Config {
         }
 
         Ok(())
+    }
+}
+
+pub fn rootfs_value_to_path(value: &str) -> color_eyre::Result<PathBuf> {
+    let (storage_id, volume_id) = parse_rootfs_value(value).wrap_err("invalid rootfs value")?;
+
+    match storage_id {
+        "local-zfs" => {
+            let Some(path) = zfs_volume_to_mountpoint(volume_id)? else {
+                return Err(eyre!("failed to find zfs mountpoint for {volume_id}"));
+            };
+            Ok(path)
+        },
+        _ => {
+            return Err(eyre!("unsupported storage id {storage_id}"));
+        },
     }
 }
 

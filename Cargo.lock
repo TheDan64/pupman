@@ -859,6 +859,7 @@ dependencies = [
  "notify",
  "ratatui",
  "tempfile",
+ "thiserror",
  "tui-logger",
  "tui-widgets",
 ]

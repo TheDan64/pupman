@@ -71,10 +71,12 @@ fn test_subid_out_of_range() {
     let config = r#"
 lxc.idmap = u 0 10000 65000
 lxc.idmap = g 0 10000 65000
+unprivileged: 1
 "#;
     let config2 = r#"
 lxc.idmap = u 0 10000 65001
 lxc.idmap = g 0 10000 65001
+unprivileged: 1
 "#;
     let mut state = State {
         host_mapping: HostMapping {
