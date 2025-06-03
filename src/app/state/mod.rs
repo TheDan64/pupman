@@ -197,11 +197,11 @@ impl State {
                     }
 
                     if let Some(metadata) = &rootfs_metadata {
-                        if kind == "u" && metadata.uid() != mapping.host_sub_id {
+                        if kind == "u" && metadata.uid() != parsed_host_sub_id {
                             debug!(
                                 "{} uid {} does not match host mapping",
                                 metadata.uid(),
-                                mapping.host_sub_id
+                                parsed_host_sub_id
                             );
                             self.findings.push(Finding {
                                 kind: FindingKind::Bad,
@@ -212,11 +212,11 @@ impl State {
                             });
                         }
 
-                        if kind == "g" && metadata.gid() != mapping.host_sub_id {
+                        if kind == "g" && metadata.gid() != parsed_host_sub_id {
                             debug!(
                                 "{} gid {} does not match host mapping",
                                 metadata.gid(),
-                                mapping.host_sub_id
+                                parsed_host_sub_id
                             );
                             self.findings.push(Finding {
                                 kind: FindingKind::Bad,
