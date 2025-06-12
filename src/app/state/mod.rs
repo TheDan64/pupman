@@ -47,6 +47,7 @@ impl Default for State {
 
 impl State {
     /// Findings are re-evaluated based on latest update
+    // TODO: Check for overlaps between configs
     pub fn evaluate_findings(&mut self, metadata: &Metadata) {
         self.findings.clear();
 
@@ -172,6 +173,28 @@ impl State {
                     unreachable!("Invalid sub id kind")
                 };
 
+                if let Some(metadata) = &rootfs_metadata {
+                    if kind == "u" && metadata.uid() != parsed_host_sub_id {
+                        self.findings.push(Finding {
+                            kind: FindingKind::Bad,
+                            message: "Rootfs uid does not match host mapping",
+                            host_mapping_highlights: Vec::new(),
+                            lxc_config_mapping_highlights: vec![cfg_pos],
+                            // TODO: Highlight rootfs listing?
+                        });
+                    }
+
+                    if kind == "g" && metadata.gid() != parsed_host_sub_id {
+                        self.findings.push(Finding {
+                            kind: FindingKind::Bad,
+                            message: "Rootfs gid does not match host mapping",
+                            host_mapping_highlights: Vec::new(),
+                            lxc_config_mapping_highlights: vec![cfg_pos],
+                            // TODO: Highlight rootfs listing?
+                        });
+                    }
+                }
+
                 for (k, mapping) in mappings.iter().enumerate() {
                     let subid_pos = if kind == "u" {
                         k
@@ -194,38 +217,6 @@ impl State {
 
                     if host_id != parsed_host_id {
                         continue;
-                    }
-
-                    if let Some(metadata) = &rootfs_metadata {
-                        if kind == "u" && metadata.uid() != parsed_host_sub_id {
-                            debug!(
-                                "{} uid {} does not match host mapping",
-                                metadata.uid(),
-                                parsed_host_sub_id
-                            );
-                            self.findings.push(Finding {
-                                kind: FindingKind::Bad,
-                                message: "Rootfs uid does not match host mapping",
-                                host_mapping_highlights: Vec::new(),
-                                lxc_config_mapping_highlights: vec![cfg_pos],
-                                // TODO: Highlight rootfs listing?
-                            });
-                        }
-
-                        if kind == "g" && metadata.gid() != parsed_host_sub_id {
-                            debug!(
-                                "{} gid {} does not match host mapping",
-                                metadata.gid(),
-                                parsed_host_sub_id
-                            );
-                            self.findings.push(Finding {
-                                kind: FindingKind::Bad,
-                                message: "Rootfs gid does not match host mapping",
-                                host_mapping_highlights: Vec::new(),
-                                lxc_config_mapping_highlights: vec![cfg_pos],
-                                // TODO: Highlight rootfs listing?
-                            });
-                        }
                     }
 
                     if parsed_host_sub_id < mapping.host_sub_id

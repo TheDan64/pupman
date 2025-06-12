@@ -5,12 +5,12 @@
 ## ✨ Features
 
 - 🔍 Scan and validate UID/GID ranges for conflicts and overlaps
-- 🔐 Helps enforce user namespace isolation and prevent security issues  
+- 🔐 Helps enforce user namespace isolation and prevent security issues
 - 🛠️ Ideal for homelabs, Proxmox setups, and manual LXC deployments
 <!--
-- 🧩 **Generate** valid `lxc.idmap` entries for unprivileged containers  
+- 🧩 **Generate** valid `lxc.idmap` entries for unprivileged containers
 - 📂 **Sync** container configs with system-wide subuid/subgid assignments
---> 
+-->
 
 ## 📦 Installation
 
