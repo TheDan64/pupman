@@ -3,7 +3,7 @@ use std::fs::{self};
 use std::os::unix::fs::MetadataExt;
 
 use indexmap::IndexMap;
-use log::{debug, error};
+use log::error;
 use tui_logger::TuiWidgetState;
 
 use super::ui::{Finding, FindingKind, HostMapping};

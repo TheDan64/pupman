@@ -14,7 +14,13 @@
 
 ## 📦 Installation
 
-Coming soon
+### Cargo
+
+If you already have Rust installed, you can use Cargo to add `pupman` as a dependency in your project:
+
+```bash
+cargo install pupman
+```
 
 ## 🔍 Why This Matters
 

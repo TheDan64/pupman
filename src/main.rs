@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use clap::Parser;
 use color_eyre::eyre::Context;
 use log::{LevelFilter, info};
-use lxcidman::app::App;
-use lxcidman::metadata::Metadata;
+use pupman::app::App;
+use pupman::metadata::Metadata;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -19,7 +19,7 @@ fn main() -> color_eyre::Result<()> {
     tui_logger::init_logger(LevelFilter::Trace)?;
     tui_logger::set_default_level(LevelFilter::Trace);
 
-    info!("Starting lxcidman...");
+    info!("Starting pupman...");
 
     let cli = Cli::parse();
 
