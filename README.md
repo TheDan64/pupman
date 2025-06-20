@@ -1,6 +1,6 @@
-# LXC ID Manager
+# Proxmox UnPrivileged Manager
 
-`lxcidman` is a lightweight CLI tool for managing UID/GID mappings for unprivileged LXC containers. It provides a clean interface to allocate and validate ID ranges defined in `/etc/subuid` and `/etc/subgid`, and ensures consistency and isolation in your container configurations.
+`pupman` is a lightweight CLI tool for managing UID/GID mappings for unprivileged LXC containers. It provides a clean interface to allocate and validate ID ranges defined in `/etc/subuid` and `/etc/subgid`, and ensures consistency and isolation in your container configurations.
 
 ## ✨ Features
 
