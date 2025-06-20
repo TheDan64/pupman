@@ -1,4 +1,4 @@
-name: Linting & Tests
+name: CI
 on: [push, pull_request]
 
 env:
