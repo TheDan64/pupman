@@ -24,7 +24,7 @@ Unprivileged LXC containers rely on UID/GID mapping to isolate the container's r
 - Lead to privilege escalation risks
 - Create hard-to-debug permission issues
 
-`lxcidman` takes the guesswork out of ID management by giving you a clear view of how your subuid/subgid space is used—and helps you avoid stepping on yourself.
+`pupman` takes the guesswork out of ID management by giving you a clear view of how your subuid/subgid space is used—and helps you avoid stepping on yourself.
 
 ## 🛡️ Disclaimer
 
