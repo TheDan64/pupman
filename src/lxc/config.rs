@@ -46,37 +46,6 @@ impl Config {
             section: section.into(),
         }
     }
-
-    pub fn sectionlesss_is_unprivileged(&self) -> bool {
-        self.entries
-            .iter()
-            .take_while(|entry| !matches!(entry, ConfEntry::Section(_)))
-            .any(|entry| match entry {
-                ConfEntry::KeyValue(key, value) => key == "unprivileged" && value == "1",
-                _ => false,
-            })
-    }
-
-    pub fn sectionless_idmap(&self) -> impl Iterator<Item = &str> {
-        self.entries
-            .iter()
-            .take_while(|entry| !matches!(entry, ConfEntry::Section(_)))
-            .filter_map(|entry| match entry {
-                ConfEntry::KeyValue(key, value) if key.starts_with("lxc.idmap") => Some(&**value),
-                _ => None,
-            })
-    }
-
-    pub fn sectionless_rootfs(&self) -> Option<&str> {
-        self.entries
-            .iter()
-            .take_while(|entry| !matches!(entry, ConfEntry::Section(_)))
-            .filter_map(|entry| match entry {
-                ConfEntry::KeyValue(key, value) if key.starts_with("rootfs") => Some(&**value),
-                _ => None,
-            })
-            .next()
-    }
 }
 
 impl FromStr for Config {
@@ -230,7 +199,8 @@ lxc.idmap: g 0 1000 3000"#;
         matches!(&config.entries[28], ConfEntry::KeyValue(key, value) if key == "lxc.idmap" && value == "g 0 1000 3000")
     );
 
-    let idmaps = config.sectionless_idmap().collect::<Vec<_>>();
+    let section = config.section(None);
+    let idmaps = section.get_all("lxc.idmap").collect::<Vec<_>>();
 
     assert_eq!(idmaps.len(), 2);
     assert_eq!(idmaps[0], "u 0 6653600 65536");

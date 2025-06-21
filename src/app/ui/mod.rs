@@ -175,16 +175,15 @@ impl Widget for &App {
         let mut rows = Vec::new();
 
         for (i, (filename, config)) in configs.iter().enumerate() {
-            if !config.sectionlesss_is_unprivileged() {
+            let section = config.section(None);
+
+            if section.get("unprivileged") != Some("1") {
                 continue;
             }
 
             let mut first = true;
 
-            // TODO: We should pre-load all important config entries
-            // rather than re-iterating every time.
-
-            for (j, idmap) in config.sectionless_idmap().enumerate() {
+            for (j, idmap) in section.get_all("lxc.idmap").enumerate() {
                 let filename = if first {
                     first = false;
                     filename
