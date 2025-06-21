@@ -22,7 +22,7 @@ Unprivileged LXC containers rely on UID/GID mapping to isolate the container's r
   - [x] Validate lxc.idmap values fit in the host's UID/GID space
   - [x] Validate rootfs is owned by the container's root user (on the host)
   - [ ] Validate lxc.idmap values do not overlap eachother
-  - [ ] Validate lxc.idmap exists at all
+  - [x] Validate lxc.idmap exists at all
   - [ ] Multi-node validation: no overlaps between nodes
 - 🛠️ Fix scanned issues:
   - [ ] Generate valid `lxc.idmap` entries

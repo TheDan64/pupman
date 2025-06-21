@@ -142,6 +142,16 @@ impl State {
                 }
             });
 
+            if !section.has_lxc_idmap() {
+                self.findings.push(Finding {
+                    kind: FindingKind::Bad,
+                    message: "lxc.idmap neither set in config",
+                    host_mapping_highlights: Vec::new(),
+                    // TODO: ?
+                    lxc_config_mapping_highlights: Vec::new(),
+                });
+            }
+
             for (j, idmap) in section.get_lxc_idmaps().enumerate() {
                 let cfg_pos = i + j;
                 let mut idmap = idmap.trim().split(' ');

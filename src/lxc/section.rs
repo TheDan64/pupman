@@ -2,7 +2,7 @@ use compact_str::CompactString;
 
 use crate::lxc::config::Config;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct SectionView<'s, 'c> {
     pub(super) config: &'c Config,
     pub(super) section: Option<&'s str>,
@@ -53,6 +53,11 @@ impl<'s, 'c> SectionView<'s, 'c> {
         self.config.index.contains_key(&(section, key))
     }
 
+    #[inline]
+    pub fn has_lxc_idmap(&self) -> bool {
+        self.has_key("lxc.idmap")
+    }
+
     pub fn keys(&self) -> impl Iterator<Item = &str> {
         self.config.index.keys().filter_map(move |(section, key)| {
             if section.as_deref() == self.section {
@@ -72,7 +77,7 @@ fn test_section_section_view() -> color_eyre::Result<()> {
     let config = Config::from_str(SAMPLE_CONFIG)?;
     let section = config.section(None);
 
-    assert!(section.has_key("lxc.idmap"));
+    assert!(section.has_lxc_idmap());
     assert_eq!(section.get("tags"), Some("unprivileged"));
     assert_eq!(section.get_rootfs(), Some("local-zfs:subvol-100-disk-0,size=4G"));
     assert_eq!(section.get_unprivileged(), Some("1"));
