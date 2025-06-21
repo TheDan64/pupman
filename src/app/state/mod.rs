@@ -66,7 +66,7 @@ impl State {
                     if metadata.is_pve {
                         self.findings.push(Finding {
                             kind: FindingKind::Bad,
-                            message: "[PVE] Cannot have multiple entries for the same user",
+                            message: "Cannot have multiple entries for the same user",
                             host_mapping_highlights: vec![j, i],
                             lxc_config_mapping_highlights: Vec::new(),
                         });
@@ -90,7 +90,7 @@ impl State {
                     if metadata.is_pve {
                         self.findings.push(Finding {
                             kind: FindingKind::Bad,
-                            message: "[PVE] Cannot have multiple entries for the same group",
+                            message: "Cannot have multiple entries for the same group",
                             host_mapping_highlights: vec![j, i],
                             lxc_config_mapping_highlights: Vec::new(),
                         });
@@ -106,12 +106,12 @@ impl State {
             && self
                 .findings
                 .iter()
-                .find(|f| f.message.starts_with("[PVE] Cannot have multiple entries for the same"))
+                .find(|f| f.message.starts_with("Cannot have multiple entries for the same"))
                 .is_none()
         {
             self.findings.push(Finding {
                 kind: FindingKind::Good,
-                message: "[PVE] No duplicate ids found in subuid/subgid mappings",
+                message: "No duplicate ids found in subuid/subgid mappings",
                 // TODO: Highlight all entries?
                 host_mapping_highlights: Vec::new(),
                 lxc_config_mapping_highlights: Vec::new(),

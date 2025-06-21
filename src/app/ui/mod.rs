@@ -29,7 +29,7 @@ impl Widget for &App {
         let host = &self.state.host_mapping;
         let configs = &self.state.lxc_configs;
         let outer_block = Block::bordered()
-            .title("LXC ID Manager")
+            .title("Proxmox UnPrivileged Manager")
             .title_alignment(Alignment::Center)
             .borders(Borders::TOP)
             .border_type(BorderType::Rounded);
