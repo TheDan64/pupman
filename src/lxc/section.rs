@@ -95,5 +95,9 @@ fn test_section_section_view() -> color_eyre::Result<()> {
     assert!(keys.contains(&"unprivileged"));
     assert!(keys.contains(&"lxc.idmap"));
 
+    let pre_setup = config.section("pre-setup");
+
+    assert_eq!(pre_setup.get("snaptime"), Some("1764532648"));
+
     Ok(())
 }
