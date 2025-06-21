@@ -21,7 +21,7 @@ use ui::{Finding, FindingKind, IdMapEntry};
 use crate::fs;
 use crate::fs::monitor::{MonitorHandler, is_valid_file};
 use crate::fs::subid::{ETC_SUBGID, ETC_SUBUID, SubID};
-use crate::lxc::Config;
+use crate::lxc::config::Config;
 use crate::metadata::Metadata;
 
 pub struct App {

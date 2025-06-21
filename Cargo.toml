@@ -8,8 +8,10 @@ readme = "README.md"
 version = "0.1.0"
 
 [dependencies]
+ahash = "0.8"
 clap = { version = "4.5", features = ["derive"] }
 color-eyre = "0.6"
+compact_str = "0.9"
 crossterm = "0.28.1"
 dirs = "6.0.0"
 etc-passwd = "0.2.2"

@@ -1,25 +1,52 @@
+//! A Proxmox LXC container configuration file parser, writer, and validator.
+//!
+//! A config should have near constant time lookups on methods since data is constantly read and
+//! displayed to the user. Writes can be slower as they are infrequent operations.
+
 use std::fmt::{Display, Write};
-use std::path::PathBuf;
 use std::str::FromStr;
 
-use color_eyre::eyre::{ContextCompat, eyre};
+use ahash::HashMap;
+use compact_str::{CompactString, ToCompactString};
 
-use crate::linux::zfs_volume_to_mountpoint;
+use super::section::SectionView;
+use super::section_mut::SectionViewMut;
 
 #[derive(Clone, Debug)]
 pub enum ConfEntry {
-    Section(String),
-    KeyValue(String, String),
+    Section(CompactString),
+    KeyValue(CompactString, CompactString),
     Comment(String),
     EmptyLine,
 }
 
 #[derive(Clone, Debug)]
 pub struct Config {
-    entries: Vec<ConfEntry>,
+    pub(super) entries: Vec<ConfEntry>,
+    pub(super) index: HashMap<(Option<CompactString>, CompactString), Vec<CompactString>>,
 }
 
 impl Config {
+    pub fn section<'s, S>(&self, section: S) -> SectionView<'s, '_>
+    where
+        S: Into<Option<&'s str>>,
+    {
+        SectionView {
+            config: self,
+            section: section.into(),
+        }
+    }
+
+    pub fn section_mut<'s, S>(&mut self, section: S) -> SectionViewMut<'s, '_>
+    where
+        S: Into<Option<&'s str>>,
+    {
+        SectionViewMut {
+            config: self,
+            section: section.into(),
+        }
+    }
+
     pub fn sectionlesss_is_unprivileged(&self) -> bool {
         self.entries
             .iter()
@@ -59,6 +86,8 @@ impl FromStr for Config {
         let lines = content.lines();
         // size_hint() is always (0, None) here; but we keep it in case future optimizations are introduced
         let mut entries = Vec::with_capacity(lines.size_hint().1.unwrap_or(0));
+        let mut index: HashMap<_, Vec<_>> = HashMap::default();
+        let mut current_section: Option<CompactString> = None;
 
         for line in lines {
             let trimmed = line.trim();
@@ -68,18 +97,28 @@ impl FromStr for Config {
             } else if trimmed.starts_with('#') || trimmed.starts_with(';') {
                 entries.push(ConfEntry::Comment(trimmed.to_string()));
             } else if trimmed.starts_with('[') && trimmed.ends_with(']') {
-                let section = trimmed[1..trimmed.len() - 1].to_string();
-                entries.push(ConfEntry::Section(section));
-            } else if let Some((key, value)) = trimmed.split_once(':') {
-                entries.push(ConfEntry::KeyValue(key.trim().to_string(), value.trim().to_string()));
-            } else if let Some((key, value)) = trimmed.split_once('=') {
-                entries.push(ConfEntry::KeyValue(key.trim().to_string(), value.trim().to_string()));
+                let section = (&trimmed[1..trimmed.len() - 1]).to_compact_string();
+
+                entries.push(ConfEntry::Section(section.clone()));
+                current_section = Some(section);
+            } else if let Some((key, value)) = trimmed.split_once(':').or_else(|| trimmed.split_once('=')) {
+                let key = key.trim().to_compact_string();
+                let value = value.trim().to_compact_string();
+
+                entries.push(ConfEntry::KeyValue(key.clone(), value.clone()));
+                index.entry((current_section.clone(), key)).or_default().push(value);
             } else {
-                entries.push(ConfEntry::KeyValue(trimmed.to_string(), String::new()));
+                let key = trimmed.to_compact_string();
+
+                entries.push(ConfEntry::KeyValue(key.clone(), CompactString::new("")));
+                index
+                    .entry((current_section.clone(), key))
+                    .or_default()
+                    .push(CompactString::new(""));
             }
         }
 
-        Ok(Config { entries })
+        Ok(Config { entries, index })
     }
 }
 
@@ -100,44 +139,6 @@ impl Display for Config {
 
         Ok(())
     }
-}
-
-pub fn rootfs_value_to_path(value: &str) -> color_eyre::Result<PathBuf> {
-    let (storage_id, volume_id) = parse_rootfs_value(value).wrap_err("invalid rootfs value")?;
-
-    match storage_id {
-        "local-zfs" => {
-            let Some(path) = zfs_volume_to_mountpoint(volume_id)? else {
-                return Err(eyre!("failed to find zfs mountpoint for {volume_id}"));
-            };
-            Ok(path)
-        },
-        _ => {
-            return Err(eyre!("unsupported storage id {storage_id}"));
-        },
-    }
-}
-
-fn parse_rootfs_value(value: &str) -> Option<(&str, &str)> {
-    let mut iter = value.split(':');
-    let storage_id = iter.next()?;
-    let rest = iter.next()?;
-    let volume_id = rest.split(',').next()?;
-
-    Some((storage_id, volume_id))
-}
-
-#[test]
-fn test_parse_rootfs_value() {
-    assert_eq!(
-        parse_rootfs_value("local-zfs:subvol-100-disk-0,size=4G"),
-        Some(("local-zfs", "subvol-100-disk-0"))
-    );
-    assert_eq!(
-        parse_rootfs_value("local-zfs:subvol-100-disk-0"),
-        Some(("local-zfs", "subvol-100-disk-0"))
-    );
-    assert_eq!(parse_rootfs_value("local-zfs"), None);
 }
 
 #[test]

@@ -8,7 +8,8 @@ use tui_logger::TuiWidgetState;
 
 use super::ui::{Finding, FindingKind, HostMapping};
 use crate::linux::{groupname_to_id, username_to_id};
-use crate::lxc::{Config, rootfs_value_to_path};
+use crate::lxc::config::Config;
+use crate::lxc::rootfs_value_to_path;
 use crate::metadata::Metadata;
 
 #[cfg(test)]

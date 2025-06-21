@@ -1,10 +1,8 @@
 use std::str::FromStr;
 
-use crate::{
-    app::ui::{FindingKind, HostMapping, IdMapEntry},
-    lxc::Config,
-    metadata::Metadata,
-};
+use crate::app::ui::{FindingKind, HostMapping, IdMapEntry};
+use crate::lxc::config::Config;
+use crate::metadata::Metadata;
 
 use super::State;
 
