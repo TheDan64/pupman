@@ -145,7 +145,7 @@ impl State {
             if !section.has_lxc_idmap() {
                 self.findings.push(Finding {
                     kind: FindingKind::Bad,
-                    message: "lxc.idmap neither set in config",
+                    message: "lxc.idmap is not set in config",
                     host_mapping_highlights: Vec::new(),
                     // TODO: ?
                     lxc_config_mapping_highlights: Vec::new(),
