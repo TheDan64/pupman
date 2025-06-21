@@ -121,11 +121,11 @@ impl State {
         for (i, (_filename, config)) in self.lxc_configs.iter().enumerate() {
             let section = config.section(None);
 
-            if section.get("unprivileged") != Some("1") {
+            if section.get_unprivileged() != Some("1") {
                 continue;
             }
 
-            let rootfs_metadata = section.get("rootfs").and_then(|rootfs_value| {
+            let rootfs_metadata = section.get_rootfs().and_then(|rootfs_value| {
                 let path = match rootfs_value_to_path(rootfs_value) {
                     Ok(path) => path,
                     Err(err) => {
@@ -142,7 +142,7 @@ impl State {
                 }
             });
 
-            for (j, idmap) in section.get_all("lxc.idmap").enumerate() {
+            for (j, idmap) in section.get_lxc_idmaps().enumerate() {
                 let cfg_pos = i + j;
                 let mut idmap = idmap.trim().split(' ');
                 let Some(kind) = idmap.next() else {

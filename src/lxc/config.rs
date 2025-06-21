@@ -112,37 +112,9 @@ impl Display for Config {
 
 #[test]
 fn test_config_to_from_str() -> color_eyre::Result<()> {
-    let content = r#"arch: amd64
-cores: 1
-features: nesting=1
-hostname: trash-pandas
-memory: 1024
-net0: name=eth0,bridge=vmbr0,firewall=1,gw=192.168.1.1,hwaddr=AD:24:14:45:A8:38,ip=192.168.1.42/24,type=veth
-ostype: debian
-parent: pre-setup
-rootfs: local-zfs:subvol-100-disk-0,size=4G
-swap: 512
-tags: unprivileged
-unprivileged: 1
-lxc.idmap: u 0 6653600 65536
-lxc.idmap: g 0 6653600 65536
+    use crate::lxc::SAMPLE_CONFIG;
 
-[pre-setup]
-arch: amd64
-cores: 1
-features: nesting=1
-hostname: trash-pandas
-memory: 1024
-net0: name=eth0,bridge=vmbr0,firewall=1,gw=192.168.1.1,hwaddr=AD:24:14:45:A8:38,ip=192.168.1.42/24,type=veth
-ostype: debian
-rootfs: local-zfs:subvol-100-disk-0,size=4G
-snaptime: 1764532648
-swap: 512
-unprivileged: 1
-lxc.idmap: u 0 1000 3000
-lxc.idmap: g 0 1000 3000"#;
-
-    let config = Config::from_str(content)?;
+    let config = Config::from_str(SAMPLE_CONFIG)?;
 
     assert_eq!(config.entries.len(), 29);
     assert!(matches!(&config.entries[0], ConfEntry::KeyValue(key, value) if key == "arch" && value == "amd64"));
@@ -200,13 +172,13 @@ lxc.idmap: g 0 1000 3000"#;
     );
 
     let section = config.section(None);
-    let idmaps = section.get_all("lxc.idmap").collect::<Vec<_>>();
+    let idmaps = section.get_lxc_idmaps().collect::<Vec<_>>();
 
     assert_eq!(idmaps.len(), 2);
     assert_eq!(idmaps[0], "u 0 6653600 65536");
     assert_eq!(idmaps[1], "g 0 6653600 65536");
 
-    assert_eq!(config.to_string(), content);
+    assert_eq!(config.to_string(), SAMPLE_CONFIG);
 
     Ok(())
 }

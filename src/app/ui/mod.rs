@@ -177,13 +177,13 @@ impl Widget for &App {
         for (i, (filename, config)) in configs.iter().enumerate() {
             let section = config.section(None);
 
-            if section.get("unprivileged") != Some("1") {
+            if section.get_unprivileged() != Some("1") {
                 continue;
             }
 
             let mut first = true;
 
-            for (j, idmap) in section.get_all("lxc.idmap").enumerate() {
+            for (j, idmap) in section.get_lxc_idmaps().enumerate() {
                 let filename = if first {
                     first = false;
                     filename
