@@ -2,6 +2,7 @@ use std::collections::{HashMap, hash_map::Entry};
 use std::fs::{self};
 use std::os::unix::fs::MetadataExt;
 
+use ahash::RandomState;
 use indexmap::IndexMap;
 use log::error;
 use tui_logger::TuiWidgetState;
@@ -20,7 +21,7 @@ pub struct State {
     pub findings: Vec<Finding>,
     pub selected_finding: Option<usize>,
     pub host_mapping: HostMapping,
-    pub lxc_configs: IndexMap<String, Config>,
+    pub lxc_configs: IndexMap<String, Config, RandomState>,
     pub show_fix_popup: bool,
     pub show_settings_page: bool,
     pub show_logs_page: bool,
@@ -37,7 +38,7 @@ impl Default for State {
                 subuid: Vec::new(),
                 subgid: Vec::new(),
             },
-            lxc_configs: IndexMap::new(),
+            lxc_configs: IndexMap::with_hasher(RandomState::new()),
             show_fix_popup: false,
             show_settings_page: false,
             show_logs_page: false,
@@ -52,10 +53,10 @@ impl State {
     pub fn evaluate_findings(&mut self, metadata: &Metadata) {
         self.findings.clear();
 
-        let mut username_to_id_map = HashMap::new();
-        let mut groupname_to_id_map = HashMap::new();
-        let mut usernames = HashMap::new();
-        let mut groupnames = HashMap::new();
+        let mut username_to_id_map = HashMap::with_hasher(RandomState::new());
+        let mut groupname_to_id_map = HashMap::with_hasher(RandomState::new());
+        let mut usernames = HashMap::with_hasher(RandomState::new());
+        let mut groupnames = HashMap::with_hasher(RandomState::new());
 
         for (i, mapping) in self.host_mapping.subuid.iter().enumerate() {
             match usernames.entry(&mapping.host_user_id) {

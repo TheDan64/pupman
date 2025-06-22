@@ -30,10 +30,6 @@ impl<'s, 'c> SectionViewMut<'s, 'c> {
             .insert(insert_index, ConfEntry::KeyValue(key, value));
     }
 
-    pub fn remove(&mut self, key: &str) {
-        self.remove_all(key);
-    }
-
     pub fn remove_all(&mut self, key: &str) {
         let section_key = (self.section.map(CompactString::new), CompactString::new(key));
 
