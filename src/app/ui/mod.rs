@@ -1,4 +1,7 @@
+use crate::fs::subid::SubID;
+
 use super::App;
+use compact_str::CompactString;
 use footer::{Footer, FooterItem};
 use logs_page::LogsPage;
 use ratatui::buffer::Buffer;
@@ -192,7 +195,7 @@ impl Widget for &App {
 
         let mut rows = Vec::new();
 
-        for (i, (filename, config)) in configs.iter().enumerate() {
+        for (filename, config) in configs {
             let section = config.section(None);
 
             if section.get_unprivileged() != Some("1") {
@@ -203,8 +206,8 @@ impl Widget for &App {
             let mut has_user_idmap = false;
             let mut has_group_idmap = false;
 
-            for (j, idmap) in section.get_lxc_idmaps().enumerate() {
-                let filename = if first {
+            for idmap in section.get_lxc_idmaps() {
+                let filename_display = if first {
                     first = false;
                     filename
                 } else {
@@ -225,23 +228,29 @@ impl Widget for &App {
                     unreachable!("Invalid ID map entry host sub id count");
                 };
 
-                if kind == "u" {
+                let sub_id = if kind == "u" {
                     has_user_idmap = true;
+                    SubID::UID
                 } else if kind == "g" {
                     has_group_idmap = true;
-                }
+                    SubID::GID
+                } else {
+                    unreachable!("Invalid ID map entry kind");
+                };
 
                 let mut style = Style::default();
 
                 if let Some(finding) = selected_finding {
-                    if finding.lxc_config_mapping_highlights.contains(&(i + j)) {
+                    let filename = CompactString::new(filename);
+
+                    if finding.lxc_config_mapping_highlights.contains(&(filename, sub_id)) {
                         style = style.bg(finding.selected_bg()).fg(Color::Black);
                     }
                 }
 
                 rows.push(
                     Row::new([
-                        Text::from(filename).alignment(Alignment::Center),
+                        Text::from(filename_display).alignment(Alignment::Center),
                         Text::from(if kind == "u" { "UID" } else { "GID" }).alignment(Alignment::Center),
                         Text::from(host_user_id).alignment(Alignment::Center),
                         Text::from(host_sub_id.to_string()).alignment(Alignment::Center),
@@ -263,27 +272,53 @@ impl Widget for &App {
             if !has_user_idmap {
                 first = false;
 
-                rows.push(Row::new([
-                    Text::from(&**filename).alignment(Alignment::Center),
-                    Text::from("UID").alignment(Alignment::Center),
-                    Text::from("?").alignment(Alignment::Center),
-                    Text::from("?").alignment(Alignment::Center),
-                    Text::from("?").alignment(Alignment::Center),
-                    Text::from("? → ?").alignment(Alignment::Center),
-                ]));
+                let mut style = Style::default();
+
+                if let Some(finding) = selected_finding {
+                    let filename = CompactString::new(filename);
+
+                    if finding.lxc_config_mapping_highlights.contains(&(filename, SubID::UID)) {
+                        style = style.bg(finding.selected_bg()).fg(Color::Black);
+                    }
+                }
+
+                rows.push(
+                    Row::new([
+                        Text::from(&**filename).alignment(Alignment::Center),
+                        Text::from("UID").alignment(Alignment::Center),
+                        Text::from("?").alignment(Alignment::Center),
+                        Text::from("?").alignment(Alignment::Center),
+                        Text::from("?").alignment(Alignment::Center),
+                        Text::from("? → ?").alignment(Alignment::Center),
+                    ])
+                    .style(style),
+                );
             }
 
             if !has_group_idmap {
-                let filename = if first { &**filename } else { "" };
+                let filename_display = if first { &**filename } else { "" };
 
-                rows.push(Row::new([
-                    Text::from(filename).alignment(Alignment::Center),
-                    Text::from("GID").alignment(Alignment::Center),
-                    Text::from("?").alignment(Alignment::Center),
-                    Text::from("?").alignment(Alignment::Center),
-                    Text::from("?").alignment(Alignment::Center),
-                    Text::from("? → ?").alignment(Alignment::Center),
-                ]));
+                let mut style = Style::default();
+
+                if let Some(finding) = selected_finding {
+                    let filename = CompactString::new(filename);
+
+                    if finding.lxc_config_mapping_highlights.contains(&(filename, SubID::UID)) {
+                        style = style.bg(finding.selected_bg()).fg(Color::Black);
+                    }
+                }
+
+                rows.push(
+                    Row::new([
+                        Text::from(filename_display).alignment(Alignment::Center),
+                        Text::from("GID").alignment(Alignment::Center),
+                        Text::from("?").alignment(Alignment::Center),
+                        Text::from("?").alignment(Alignment::Center),
+                        Text::from("?").alignment(Alignment::Center),
+                        Text::from("? → ?").alignment(Alignment::Center),
+                    ])
+                    .style(style),
+                );
             }
         }
 
@@ -337,12 +372,14 @@ pub enum FindingKind {
     Bad,
 }
 
+// REVIEW: Vecs here should maybe be SmallVecs?
 #[derive(Clone, Debug)]
 pub struct Finding {
     pub kind: FindingKind,
     pub message: &'static str,
     pub host_mapping_highlights: Vec<usize>,
-    pub lxc_config_mapping_highlights: Vec<usize>,
+    pub lxc_config_mapping_highlights: Vec<(CompactString, SubID)>,
+    pub rootfs_highlights: Vec<String>,
 }
 
 impl Finding {

@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use crate::app::ui::{FindingKind, HostMapping, IdMapEntry};
+use crate::fs::subid::SubID;
 use crate::lxc::config::Config;
 use crate::metadata::Metadata;
 
@@ -112,12 +113,18 @@ unprivileged: 1
         "LXC config's host sub uid range outside of host mapping range"
     );
     assert_eq!(state.findings[0].host_mapping_highlights, [0]);
-    assert_eq!(state.findings[0].lxc_config_mapping_highlights, [0]);
+    assert_eq!(
+        state.findings[0].lxc_config_mapping_highlights,
+        [("test.conf".into(), SubID::UID)]
+    );
     assert_eq!(state.findings[1].kind, FindingKind::Bad);
     assert_eq!(
         state.findings[1].message,
         "LXC config's host sub gid range outside of host mapping range"
     );
     assert_eq!(state.findings[1].host_mapping_highlights, [1]);
-    assert_eq!(state.findings[1].lxc_config_mapping_highlights, [1]);
+    assert_eq!(
+        state.findings[1].lxc_config_mapping_highlights,
+        [("test.conf".into(), SubID::GID)]
+    );
 }

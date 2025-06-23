@@ -3,11 +3,13 @@ use std::fs::{self};
 use std::os::unix::fs::MetadataExt;
 
 use ahash::RandomState;
+use compact_str::CompactString;
 use indexmap::IndexMap;
 use log::error;
 use tui_logger::TuiWidgetState;
 
 use super::ui::{Finding, FindingKind, HostMapping};
+use crate::fs::subid::SubID;
 use crate::linux::{groupname_to_id, username_to_id};
 use crate::lxc::config::Config;
 use crate::lxc::rootfs_value_to_path;
@@ -21,7 +23,7 @@ pub struct State {
     pub findings: Vec<Finding>,
     pub selected_finding: Option<usize>,
     pub host_mapping: HostMapping,
-    pub lxc_configs: IndexMap<String, Config, RandomState>,
+    pub lxc_configs: IndexMap<CompactString, Config, RandomState>,
     pub rootfs_info: IndexMap<String, String, RandomState>,
     pub show_fix_popup: bool,
     pub show_settings_page: bool,
@@ -72,6 +74,7 @@ impl State {
                             message: "Cannot have multiple entries for the same user",
                             host_mapping_highlights: vec![j, i],
                             lxc_config_mapping_highlights: Vec::new(),
+                            rootfs_highlights: Vec::new(),
                         });
                     }
                 },
@@ -96,6 +99,7 @@ impl State {
                             message: "Cannot have multiple entries for the same group",
                             host_mapping_highlights: vec![j, i],
                             lxc_config_mapping_highlights: Vec::new(),
+                            rootfs_highlights: Vec::new(),
                         });
                     }
                 },
@@ -118,10 +122,11 @@ impl State {
                 // TODO: Highlight all entries?
                 host_mapping_highlights: Vec::new(),
                 lxc_config_mapping_highlights: Vec::new(),
+                rootfs_highlights: Vec::new(),
             });
         }
 
-        for (i, (_filename, config)) in self.lxc_configs.iter().enumerate() {
+        for (filename, config) in &self.lxc_configs {
             let section = config.section(None);
 
             if section.get_unprivileged() != Some("1") {
@@ -148,8 +153,7 @@ impl State {
             let mut has_user_idmap = false;
             let mut has_group_idmap = false;
 
-            for (j, idmap) in section.get_lxc_idmaps().enumerate() {
-                let cfg_pos = i + j;
+            for idmap in section.get_lxc_idmaps() {
                 let mut idmap = idmap.trim().split(' ');
                 let Some(kind) = idmap.next() else {
                     unreachable!("Invalid ID map entry kind");
@@ -192,8 +196,9 @@ impl State {
                             kind: FindingKind::Bad,
                             message: "Rootfs uid does not match host mapping",
                             host_mapping_highlights: Vec::new(),
-                            lxc_config_mapping_highlights: vec![cfg_pos],
+                            lxc_config_mapping_highlights: vec![(filename.clone(), SubID::UID)],
                             // TODO: Highlight rootfs listing?
+                            rootfs_highlights: Vec::new(),
                         });
                     }
 
@@ -202,8 +207,9 @@ impl State {
                             kind: FindingKind::Bad,
                             message: "Rootfs gid does not match host mapping",
                             host_mapping_highlights: Vec::new(),
-                            lxc_config_mapping_highlights: vec![cfg_pos],
+                            lxc_config_mapping_highlights: vec![(filename.clone(), SubID::GID)],
                             // TODO: Highlight rootfs listing?
+                            rootfs_highlights: Vec::new(),
                         });
                     }
                 }
@@ -237,17 +243,24 @@ impl State {
                         || parsed_host_sub_id + parsed_host_sub_id_size
                             > mapping.host_sub_id + mapping.host_sub_id_count
                     {
-                        let message = if kind == "u" {
-                            "LXC config's host sub uid range outside of host mapping range"
+                        let (message, sub_id) = if kind == "u" {
+                            (
+                                "LXC config's host sub uid range outside of host mapping range",
+                                SubID::UID,
+                            )
                         } else {
-                            "LXC config's host sub gid range outside of host mapping range"
+                            (
+                                "LXC config's host sub gid range outside of host mapping range",
+                                SubID::GID,
+                            )
                         };
 
                         self.findings.push(Finding {
                             kind: FindingKind::Bad,
                             message,
                             host_mapping_highlights: vec![subid_pos],
-                            lxc_config_mapping_highlights: vec![cfg_pos],
+                            lxc_config_mapping_highlights: vec![(filename.clone(), sub_id)],
+                            rootfs_highlights: Vec::new(),
                         });
                     }
                 }
@@ -259,8 +272,9 @@ impl State {
                     kind: FindingKind::Bad,
                     message: "lxc.idmap for uid is not set in config",
                     host_mapping_highlights: Vec::new(),
-                    // TODO: highlight config?
-                    lxc_config_mapping_highlights: Vec::new(),
+                    lxc_config_mapping_highlights: vec![(filename.clone(), SubID::UID)],
+                    // TODO:
+                    rootfs_highlights: Vec::new(),
                 });
             }
 
@@ -270,8 +284,9 @@ impl State {
                     kind: FindingKind::Bad,
                     message: "lxc.idmap for gid is not set in config",
                     host_mapping_highlights: Vec::new(),
-                    // TODO: highlight config?
-                    lxc_config_mapping_highlights: Vec::new(),
+                    lxc_config_mapping_highlights: vec![(filename.clone(), SubID::GID)],
+                    // TODO:
+                    rootfs_highlights: Vec::new(),
                 });
             }
         }

@@ -5,6 +5,7 @@ use std::sync::mpsc::{self, Sender};
 use std::thread;
 
 use color_eyre::eyre::{OptionExt, eyre};
+use compact_str::CompactString;
 use crossterm::event::Event as CrosstermEvent;
 use log::warn;
 use ratatui::DefaultTerminal;
@@ -98,8 +99,7 @@ impl App {
         let filename = path
             .file_name()
             .and_then(|f| f.to_str())
-            .ok_or_else(|| eyre!("Invalid file name"))?
-            .to_string();
+            .ok_or_else(|| eyre!("Invalid file name"))?;
         let config = Config::from_str(content)?;
         let section = config.section(None);
 
@@ -110,7 +110,7 @@ impl App {
             self.state.rootfs_info.insert(rootfs.to_string(), rootfs.to_string());
         }
 
-        self.state.lxc_configs.insert(filename, config);
+        self.state.lxc_configs.insert(CompactString::new(filename), config);
         // self.state.lxc_configs.sort_unstable_keys();
 
         Ok(())
