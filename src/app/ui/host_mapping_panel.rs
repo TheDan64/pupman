@@ -7,6 +7,7 @@ use ratatui::text::Text;
 use ratatui::widgets::{Block, Borders, Row, Table, Widget};
 
 use crate::app::ui::{Finding, HostMapping};
+use crate::fs::subid::SubID;
 
 pub struct HostMappingPanel<'a> {
     mapping: &'a HostMapping,
@@ -24,7 +25,6 @@ impl<'a> HostMappingPanel<'a> {
 
 impl Widget for HostMappingPanel<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // ── Host Table ──
         let mut host_rows = Vec::new();
 
         let entries = self
@@ -32,22 +32,26 @@ impl Widget for HostMappingPanel<'_> {
             .subuid
             .iter()
             .zip(repeat("UID"))
-            .chain(self.mapping.subgid.iter().zip(repeat("GID")))
-            .enumerate();
+            .chain(self.mapping.subgid.iter().zip(repeat("GID")));
 
-        for (i, (entry, kind)) in entries {
+        for (entry, kind) in entries {
             let mut style = Style::default();
 
             if let Some(finding) = self.selected_finding {
-                if finding.host_mapping_highlights.contains(&i) {
+                let sub_id = if kind == "UID" { SubID::UID } else { SubID::GID };
+
+                if finding
+                    .host_mapping_highlights
+                    .contains(&(entry.host_user_id.clone(), sub_id))
+                {
                     style = style.bg(finding.selected_bg()).fg(Color::Black);
                 }
             }
 
             host_rows.push(
                 Row::new([
-                    Text::from(kind).alignment(Alignment::Center),
                     Text::from(&*entry.host_user_id).alignment(Alignment::Center),
+                    Text::from(kind).alignment(Alignment::Center),
                     Text::from(entry.host_sub_id.to_string()).alignment(Alignment::Center),
                     Text::from(entry.host_sub_id_count.to_string()).alignment(Alignment::Center),
                     Text::from(format!(
@@ -62,8 +66,8 @@ impl Widget for HostMappingPanel<'_> {
         }
 
         let host_header = Row::new([
-            Text::from("Kind").alignment(Alignment::Center),
             Text::from("ID").alignment(Alignment::Center),
+            Text::from("Kind").alignment(Alignment::Center),
             Text::from("Sub ID").alignment(Alignment::Center),
             Text::from("Sub ID Size").alignment(Alignment::Center),
             Text::from("Sub ID Range").alignment(Alignment::Center),

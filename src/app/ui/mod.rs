@@ -122,7 +122,7 @@ impl Widget for &App {
 // Data structures
 #[derive(Debug)]
 pub struct IdMapEntry {
-    pub host_user_id: String,
+    pub host_user_id: CompactString,
     pub host_sub_id: u32,
     pub host_sub_id_count: u32,
 }
@@ -144,7 +144,7 @@ pub enum FindingKind {
 pub struct Finding {
     pub kind: FindingKind,
     pub message: &'static str,
-    pub host_mapping_highlights: Vec<usize>,
+    pub host_mapping_highlights: Vec<(CompactString, SubID)>,
     pub lxc_config_mapping_highlights: Vec<(CompactString, SubID)>,
     pub rootfs_highlights: Vec<String>,
 }

@@ -308,7 +308,7 @@ fn parse_subid_map(content: &str) -> color_eyre::Result<Vec<IdMapEntry>> {
         }
 
         let mut iter = trimmed.split(':');
-        let host_user_id = iter.next().ok_or_eyre("user id not found")?.to_owned();
+        let host_user_id = CompactString::new(iter.next().ok_or_eyre("user id not found")?);
         let host_sub_id: u32 = iter.next().ok_or_eyre("host sub id not found")?.parse()?;
         let host_sub_id_count: u32 = iter
             .next()

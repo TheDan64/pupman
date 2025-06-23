@@ -1,5 +1,5 @@
 use std::collections::{HashMap, hash_map::Entry};
-use std::fs::{self};
+use std::fs;
 use std::os::unix::fs::MetadataExt;
 
 use ahash::RandomState;
@@ -59,46 +59,43 @@ impl State {
 
         let mut username_to_id_map = HashMap::with_hasher(RandomState::new());
         let mut groupname_to_id_map = HashMap::with_hasher(RandomState::new());
-        let mut usernames = HashMap::with_hasher(RandomState::new());
-        let mut groupnames = HashMap::with_hasher(RandomState::new());
+        let mut usernames: HashMap<_, (&CompactString, SubID), _> = HashMap::with_hasher(RandomState::new());
+        let mut groupnames: HashMap<_, (&CompactString, SubID), _> = HashMap::with_hasher(RandomState::new());
 
-        for (i, mapping) in self.host_mapping.subuid.iter().enumerate() {
+        for mapping in &self.host_mapping.subuid {
             match usernames.entry(&mapping.host_user_id) {
                 Entry::Occupied(occupancy) => {
-                    let j = *occupancy.get();
+                    let (user_id, sub_id) = *occupancy.get();
 
                     self.findings.push(Finding {
                         kind: FindingKind::Bad,
                         message: "Cannot have multiple entries for the same user",
-                        host_mapping_highlights: vec![j, i],
+                        host_mapping_highlights: vec![(user_id.clone(), sub_id)],
                         lxc_config_mapping_highlights: Vec::new(),
                         rootfs_highlights: Vec::new(),
                     });
                 },
                 Entry::Vacant(vacancy) => {
-                    vacancy.insert(i);
+                    vacancy.insert((&mapping.host_user_id, SubID::UID));
                 },
             };
         }
 
-        for (i, mapping) in self.host_mapping.subgid.iter().enumerate() {
-            // Offset by the number of preceding gid entries
-            let i = i + self.host_mapping.subuid.len();
-
+        for mapping in &self.host_mapping.subgid {
             match groupnames.entry(&mapping.host_user_id) {
                 Entry::Occupied(occupancy) => {
-                    let j = *occupancy.get();
+                    let (user_id, sub_id) = *occupancy.get();
 
                     self.findings.push(Finding {
                         kind: FindingKind::Bad,
                         message: "Cannot have multiple entries for the same group",
-                        host_mapping_highlights: vec![j, i],
+                        host_mapping_highlights: vec![(user_id.clone(), sub_id)],
                         lxc_config_mapping_highlights: Vec::new(),
                         rootfs_highlights: Vec::new(),
                     });
                 },
                 Entry::Vacant(vacancy) => {
-                    vacancy.insert(i);
+                    vacancy.insert((&mapping.host_user_id, SubID::GID));
                 },
             };
         }
@@ -206,12 +203,7 @@ impl State {
                     }
                 }
 
-                for (k, mapping) in mappings.iter().enumerate() {
-                    let subid_pos = if kind == "u" {
-                        k
-                    } else {
-                        k + self.host_mapping.subuid.len()
-                    };
+                for mapping in mappings {
                     let host_id = match idmap.entry(&mapping.host_user_id) {
                         Entry::Occupied(id) => *id.get(),
                         Entry::Vacant(vacancy) => {
@@ -250,7 +242,7 @@ impl State {
                         self.findings.push(Finding {
                             kind: FindingKind::Bad,
                             message,
-                            host_mapping_highlights: vec![subid_pos],
+                            host_mapping_highlights: vec![(mapping.host_user_id.clone(), sub_id)],
                             lxc_config_mapping_highlights: vec![(filename.clone(), sub_id)],
                             rootfs_highlights: Vec::new(),
                         });
@@ -265,7 +257,6 @@ impl State {
                     message: "lxc.idmap for uid is not set in config",
                     host_mapping_highlights: Vec::new(),
                     lxc_config_mapping_highlights: vec![(filename.clone(), SubID::UID)],
-                    // TODO:
                     rootfs_highlights: Vec::new(),
                 });
             }
@@ -277,7 +268,6 @@ impl State {
                     message: "lxc.idmap for gid is not set in config",
                     host_mapping_highlights: Vec::new(),
                     lxc_config_mapping_highlights: vec![(filename.clone(), SubID::GID)],
-                    // TODO:
                     rootfs_highlights: Vec::new(),
                 });
             }

@@ -44,7 +44,10 @@ fn test_duplicate_username_not_allowed_in_subid() {
         state.findings[0].message,
         "Cannot have multiple entries for the same user"
     );
-    assert_eq!(state.findings[0].host_mapping_highlights, vec![0, 1]);
+    assert_eq!(
+        state.findings[0].host_mapping_highlights,
+        vec![("1000".into(), SubID::UID)]
+    );
     assert_eq!(state.findings[0].lxc_config_mapping_highlights, Vec::new());
 
     state.host_mapping.subgid = state.host_mapping.subuid;
@@ -58,12 +61,15 @@ fn test_duplicate_username_not_allowed_in_subid() {
         state.findings[0].message,
         "Cannot have multiple entries for the same group"
     );
-    assert_eq!(state.findings[0].host_mapping_highlights, vec![0, 1]);
+    assert_eq!(
+        state.findings[0].host_mapping_highlights,
+        vec![("1000".into(), SubID::GID)]
+    );
     assert_eq!(state.findings[0].lxc_config_mapping_highlights, Vec::new());
 }
 
 #[test]
-fn test_subid_out_of_range() {
+fn test_subid_out_of_range() -> color_eyre::Result<()> {
     let config = r#"
 lxc.idmap = u 0 10000 65000
 lxc.idmap = g 0 10000 65000
@@ -87,41 +93,45 @@ unprivileged: 1
                 host_sub_id_count: 65000,
             }],
         },
-        lxc_configs: [("test.conf".into(), Config::from_str(config).unwrap())]
-            .into_iter()
-            .collect(),
+        lxc_configs: [("test.conf".into(), Config::from_str(config)?)].into_iter().collect(),
         ..State::default()
     };
 
     state.evaluate_findings(&Metadata::default());
 
-    assert!(state.findings.is_empty());
+    assert!(state.findings.iter().all(|f| f.kind == FindingKind::Good));
 
-    state.lxc_configs = [("test.conf".into(), Config::from_str(config2).unwrap())]
-        .into_iter()
-        .collect();
+    state.lxc_configs = [("test.conf".into(), Config::from_str(config2)?)].into_iter().collect();
 
     state.evaluate_findings(&Metadata::default());
 
-    assert_eq!(state.findings.len(), 2);
-    assert_eq!(state.findings[0].kind, FindingKind::Bad);
+    let findings = state
+        .findings
+        .iter()
+        .filter(|f| f.kind == FindingKind::Bad)
+        .collect::<Vec<_>>();
+
+    assert_eq!(findings.len(), 2);
+    assert_eq!(findings[0].kind, FindingKind::Bad);
     assert_eq!(
-        state.findings[0].message,
+        findings[0].message,
         "LXC config's host sub uid range outside of host mapping range"
     );
-    assert_eq!(state.findings[0].host_mapping_highlights, [0]);
+    assert_eq!(findings[0].host_mapping_highlights, [("0".into(), SubID::UID)]);
     assert_eq!(
-        state.findings[0].lxc_config_mapping_highlights,
+        findings[0].lxc_config_mapping_highlights,
         [("test.conf".into(), SubID::UID)]
     );
-    assert_eq!(state.findings[1].kind, FindingKind::Bad);
+    assert_eq!(findings[1].kind, FindingKind::Bad);
     assert_eq!(
-        state.findings[1].message,
+        findings[1].message,
         "LXC config's host sub gid range outside of host mapping range"
     );
-    assert_eq!(state.findings[1].host_mapping_highlights, [1]);
+    assert_eq!(findings[1].host_mapping_highlights, [("0".into(), SubID::GID)]);
     assert_eq!(
-        state.findings[1].lxc_config_mapping_highlights,
+        findings[1].lxc_config_mapping_highlights,
         [("test.conf".into(), SubID::GID)]
     );
+
+    Ok(())
 }
