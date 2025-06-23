@@ -1,3 +1,4 @@
+use crate::app::ui::rootfs_panel::RootFSPanel;
 use crate::fs::subid::SubID;
 
 use super::App;
@@ -18,6 +19,7 @@ use std::iter::repeat;
 mod findings_list;
 mod footer;
 mod logs_page;
+mod rootfs_panel;
 
 use findings_list::FindingsList;
 
@@ -99,32 +101,7 @@ impl Widget for &App {
         ])
         .areas(left_area);
 
-        // ── RootFS Table ──
-        let rootfs_header = Row::new([
-            Text::from("Path").alignment(Alignment::Center),
-            Text::from("Owner UID").alignment(Alignment::Center),
-            Text::from("Owner GID").alignment(Alignment::Center),
-        ])
-        .style(Style::default().add_modifier(Modifier::BOLD));
-        let mut rootfs_rows = Vec::new();
-
-        for (rootfs, _info) in &self.state.rootfs_info {
-            rootfs_rows.push(Row::new(vec![
-                Text::from(&**rootfs).alignment(Alignment::Center),
-                Text::from("TODO").alignment(Alignment::Center),
-                Text::from("TODO").alignment(Alignment::Center),
-            ]));
-        }
-
-        Table::new(rootfs_rows, &[])
-            .header(rootfs_header)
-            .block(
-                Block::default()
-                    .title("RootFS")
-                    .borders(Borders::ALL)
-                    .title_alignment(Alignment::Center),
-            )
-            .render(rootfs_area, buf);
+        RootFSPanel::new(&self.state.rootfs_info).render(rootfs_area, buf);
 
         let selected_finding = self.selected_finding();
 
@@ -275,9 +252,10 @@ impl Widget for &App {
                 let mut style = Style::default();
 
                 if let Some(finding) = selected_finding {
-                    let filename = CompactString::new(filename);
-
-                    if finding.lxc_config_mapping_highlights.contains(&(filename, SubID::UID)) {
+                    if finding
+                        .lxc_config_mapping_highlights
+                        .contains(&(filename.clone(), SubID::UID))
+                    {
                         style = style.bg(finding.selected_bg()).fg(Color::Black);
                     }
                 }
@@ -301,9 +279,10 @@ impl Widget for &App {
                 let mut style = Style::default();
 
                 if let Some(finding) = selected_finding {
-                    let filename = CompactString::new(filename);
-
-                    if finding.lxc_config_mapping_highlights.contains(&(filename, SubID::GID)) {
+                    if finding
+                        .lxc_config_mapping_highlights
+                        .contains(&(filename.clone(), SubID::GID))
+                    {
                         style = style.bg(finding.selected_bg()).fg(Color::Black);
                     }
                 }
