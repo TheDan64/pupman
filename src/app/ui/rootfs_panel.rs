@@ -16,7 +16,7 @@ impl<'a> RootFSPanel<'a> {
     }
 }
 
-impl<'a> Widget for RootFSPanel<'a> {
+impl Widget for RootFSPanel<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let rootfs_header = Row::new([
             Text::from("Path").alignment(Alignment::Center),

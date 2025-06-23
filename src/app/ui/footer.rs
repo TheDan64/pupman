@@ -1,4 +1,5 @@
-use ratatui::{prelude::*, widgets::Paragraph};
+use ratatui::prelude::*;
+use ratatui::widgets::Paragraph;
 
 #[derive(Clone, Copy, Debug)]
 pub enum FooterItem {
@@ -17,11 +18,11 @@ impl<'f> Footer<'f> {
     }
 }
 
-impl<'a> Widget for Footer<'a> {
+impl Widget for Footer<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut spans = Vec::with_capacity(self.items.len());
 
-        for (i, item) in self.items.into_iter().enumerate() {
+        for (i, item) in self.items.iter().enumerate() {
             match item {
                 FooterItem::Div => spans.push(Span::raw("  ║")),
                 FooterItem::Key(key, value, color) => {

@@ -8,7 +8,7 @@ pub struct SectionViewMut<'s, 'c> {
     pub(super) section: Option<&'s str>,
 }
 
-impl<'s, 'c> SectionViewMut<'s, 'c> {
+impl SectionViewMut<'_, '_> {
     pub fn set(&mut self, key: &str, value: &str) {
         self.remove_all(key);
         self.append(key, value);

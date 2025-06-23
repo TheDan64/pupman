@@ -110,11 +110,10 @@ impl State {
         }
 
         if metadata.is_pve
-            && self
+            && !self
                 .findings
                 .iter()
-                .find(|f| f.message.starts_with("Cannot have multiple entries for the same"))
-                .is_none()
+                .any(|f| f.message.starts_with("Cannot have multiple entries for the same"))
         {
             self.findings.push(Finding {
                 kind: FindingKind::Good,

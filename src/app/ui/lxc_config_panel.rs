@@ -33,7 +33,7 @@ impl<'a> LXCConfigPanel<'a> {
     }
 }
 
-impl<'a> Widget for LXCConfigPanel<'a> {
+impl Widget for LXCConfigPanel<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let header = Row::new([
             Text::from("Config").alignment(Alignment::Center),

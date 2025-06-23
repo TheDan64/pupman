@@ -50,9 +50,7 @@ pub fn rootfs_value_to_path(value: &str) -> color_eyre::Result<PathBuf> {
             };
             Ok(path)
         },
-        _ => {
-            return Err(eyre!("unsupported storage id {storage_id}"));
-        },
+        _ => Err(eyre!("unsupported storage id {storage_id}")),
     }
 }
 

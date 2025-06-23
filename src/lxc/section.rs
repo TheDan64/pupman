@@ -8,7 +8,7 @@ pub struct SectionView<'s, 'c> {
     pub(super) section: Option<&'s str>,
 }
 
-impl<'s, 'c> SectionView<'s, 'c> {
+impl<'c> SectionView<'_, 'c> {
     pub fn get(&self, key: &str) -> Option<&'c str> {
         let section = self.section.map(CompactString::new);
         let key = CompactString::new(key);

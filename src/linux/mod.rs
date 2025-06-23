@@ -56,7 +56,7 @@ pub fn groupname_to_id(groupname: &str) -> color_eyre::Result<u32> {
 }
 
 pub fn zfs_volume_to_mountpoint(volume: &str) -> Result<Option<PathBuf>, LinuxError> {
-    let output = Command::new("zfs").args(&["list", "-o", "mountpoint"]).output()?;
+    let output = Command::new("zfs").args(["list", "-o", "mountpoint"]).output()?;
 
     if !output.status.success() {
         return Err(output.into());

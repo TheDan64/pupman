@@ -22,7 +22,7 @@ impl<'a> HostMappingPanel<'a> {
     }
 }
 
-impl<'a> Widget for HostMappingPanel<'a> {
+impl Widget for HostMappingPanel<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // ── Host Table ──
         let mut host_rows = Vec::new();

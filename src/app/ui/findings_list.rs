@@ -15,7 +15,7 @@ impl<'f> FindingsList<'f> {
     }
 }
 
-impl<'a> Widget for FindingsList<'a> {
+impl Widget for FindingsList<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Draw block around the list
         let block = Block::default()
