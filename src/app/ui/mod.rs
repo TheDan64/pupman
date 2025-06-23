@@ -2,7 +2,7 @@ use super::App;
 use footer::{Footer, FooterItem};
 use logs_page::LogsPage;
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect, Rows};
+use ratatui::layout::{Alignment, Rect};
 use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Text;
@@ -92,18 +92,25 @@ impl Widget for &App {
         let [host_area, container_area, rootfs_area] = Layout::vertical([
             Constraint::Length(3 + (host.subgid.len() + host.subuid.len()) as u16),
             Constraint::Min(2),
-            Constraint::Length(3),
+            Constraint::Min(4),
         ])
         .areas(left_area);
 
-        let rootfs_header = Row::new([Text::from("Path").alignment(Alignment::Center)])
-            .style(Style::default().add_modifier(Modifier::BOLD));
-
         // ── RootFS Table ──
+        let rootfs_header = Row::new([
+            Text::from("Path").alignment(Alignment::Center),
+            Text::from("Owner UID").alignment(Alignment::Center),
+            Text::from("Owner GID").alignment(Alignment::Center),
+        ])
+        .style(Style::default().add_modifier(Modifier::BOLD));
         let mut rootfs_rows = Vec::new();
 
         for (rootfs, _info) in &self.state.rootfs_info {
-            rootfs_rows.push(Row::new(vec![Text::from(&**rootfs).alignment(Alignment::Center)]));
+            rootfs_rows.push(Row::new(vec![
+                Text::from(&**rootfs).alignment(Alignment::Center),
+                Text::from("TODO"),
+                Text::from("TODO"),
+            ]));
         }
 
         Table::new(rootfs_rows, &[])
@@ -163,17 +170,7 @@ impl Widget for &App {
         ])
         .style(Style::default().add_modifier(Modifier::BOLD));
 
-        let host_table = Table::new(
-            host_rows,
-            &[
-                // Constraint::Length(4),
-                // Constraint::Length(12),
-                // Constraint::Length(12),
-                // Constraint::Length(12),
-            ],
-        )
-        .header(host_header)
-        .block(
+        let host_table = Table::new(host_rows, &[]).header(host_header).block(
             Block::default()
                 .title("Host Mappings (/etc/subuid /etc/subgid)")
                 .borders(Borders::ALL)
