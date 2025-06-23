@@ -22,6 +22,7 @@ pub struct State {
     pub selected_finding: Option<usize>,
     pub host_mapping: HostMapping,
     pub lxc_configs: IndexMap<String, Config, RandomState>,
+    pub rootfs_info: IndexMap<String, String, RandomState>,
     pub show_fix_popup: bool,
     pub show_settings_page: bool,
     pub show_logs_page: bool,
@@ -39,6 +40,7 @@ impl Default for State {
                 subgid: Vec::new(),
             },
             lxc_configs: IndexMap::with_hasher(RandomState::new()),
+            rootfs_info: IndexMap::with_hasher(RandomState::new()),
             show_fix_popup: false,
             show_settings_page: false,
             show_logs_page: false,
@@ -143,15 +145,8 @@ impl State {
                 }
             });
 
-            if !section.has_lxc_idmap() {
-                self.findings.push(Finding {
-                    kind: FindingKind::Bad,
-                    message: "lxc.idmap is not set in config",
-                    host_mapping_highlights: Vec::new(),
-                    // TODO: ?
-                    lxc_config_mapping_highlights: Vec::new(),
-                });
-            }
+            let mut has_user_idmap = false;
+            let mut has_group_idmap = false;
 
             for (j, idmap) in section.get_lxc_idmaps().enumerate() {
                 let cfg_pos = i + j;
@@ -172,12 +167,16 @@ impl State {
                 };
                 let parsed_host_sub_id_size = host_sub_id_size.parse::<u32>().unwrap();
                 let (idmap, mappings, to_id) = if kind == "u" {
+                    has_user_idmap = true;
+
                     (
                         &mut username_to_id_map,
                         &*self.host_mapping.subuid,
                         username_to_id as fn(&str) -> color_eyre::Result<u32>,
                     )
                 } else if kind == "g" {
+                    has_group_idmap = true;
+
                     (
                         &mut groupname_to_id_map,
                         &*self.host_mapping.subgid,
@@ -252,6 +251,28 @@ impl State {
                         });
                     }
                 }
+            }
+
+            // TODO: This stil needs a test
+            if !has_user_idmap {
+                self.findings.push(Finding {
+                    kind: FindingKind::Bad,
+                    message: "lxc.idmap for uid is not set in config",
+                    host_mapping_highlights: Vec::new(),
+                    // TODO: highlight config?
+                    lxc_config_mapping_highlights: Vec::new(),
+                });
+            }
+
+            // TODO: This stil needs a test
+            if !has_group_idmap {
+                self.findings.push(Finding {
+                    kind: FindingKind::Bad,
+                    message: "lxc.idmap for gid is not set in config",
+                    host_mapping_highlights: Vec::new(),
+                    // TODO: highlight config?
+                    lxc_config_mapping_highlights: Vec::new(),
+                });
             }
         }
 
