@@ -1,4 +1,5 @@
 use crate::app::ui::host_mapping_panel::HostMappingPanel;
+use crate::app::ui::lxc_config_panel::LXCConfigPanel;
 use crate::app::ui::rootfs_panel::RootFSPanel;
 use crate::fs::subid::SubID;
 
@@ -9,9 +10,9 @@ use logs_page::LogsPage;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::layout::{Constraint, Layout};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Color, Style};
 use ratatui::text::Text;
-use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Row, Table, Widget};
+use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Widget};
 use tui_widgets::popup::Popup;
 
 use std::fmt::Display;
@@ -20,6 +21,7 @@ mod findings_list;
 mod footer;
 mod host_mapping_panel;
 mod logs_page;
+mod lxc_config_panel;
 mod rootfs_panel;
 
 use findings_list::FindingsList;
@@ -33,7 +35,6 @@ impl Widget for &App {
     // - https://github.com/ratatui/ratatui/tree/master/examples
     fn render(self, area: Rect, buf: &mut Buffer) {
         let host = &self.state.host_mapping;
-        let configs = &self.state.lxc_configs;
         let outer_block = Block::bordered()
             .title("Proxmox UnPrivileged Manager")
             .title_alignment(Alignment::Center)
@@ -61,7 +62,16 @@ impl Widget for &App {
             return;
         }
 
+        let selected_finding = self.selected_finding();
         let [main_area, footer_area] = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(inner_area);
+        let [left_area, right_area] =
+            Layout::horizontal([Constraint::Percentage(75), Constraint::Percentage(25)]).areas(main_area);
+        let [host_area, config_area, rootfs_area] = Layout::vertical([
+            Constraint::Length(3 + (host.subgid.len() + host.subuid.len()) as u16),
+            Constraint::Min(2),
+            Constraint::Min(4),
+        ])
+        .areas(left_area);
 
         // Command Bar Footer
 
@@ -75,7 +85,7 @@ impl Widget for &App {
                 FooterItem::Key("↑↓", "Navigate", Color::LightGreen),
             ];
 
-            if self.selected_finding().is_some_and(|f| f.kind == FindingKind::Bad) {
+            if selected_finding.is_some_and(|f| f.kind == FindingKind::Bad) {
                 items.extend([
                     FooterItem::Key("e", "Explain", Color::LightCyan),
                     FooterItem::Key("f", "Fix", Color::Rgb(255, 102, 0)),
@@ -91,182 +101,12 @@ impl Widget for &App {
             items
         };
 
-        Footer::new(&items).render(footer_area, buf);
-
-        let [left_area, right_area] =
-            Layout::horizontal([Constraint::Percentage(75), Constraint::Percentage(25)]).areas(main_area);
-        let [host_area, container_area, rootfs_area] = Layout::vertical([
-            Constraint::Length(3 + (host.subgid.len() + host.subuid.len()) as u16),
-            Constraint::Min(2),
-            Constraint::Min(4),
-        ])
-        .areas(left_area);
-
-        let selected_finding = self.selected_finding();
-
-        RootFSPanel::new(&self.state.rootfs_info).render(rootfs_area, buf);
         HostMappingPanel::new(&self.state.host_mapping, selected_finding).render(host_area, buf);
-
-        // ── LXC Config Table ──
-        let header = Row::new([
-            Text::from("Config").alignment(Alignment::Center),
-            Text::from("Kind").alignment(Alignment::Center),
-            Text::from("ID").alignment(Alignment::Center),
-            Text::from("Sub ID").alignment(Alignment::Center),
-            Text::from("Sub ID Size").alignment(Alignment::Center),
-            Text::from("Sub ID Range").alignment(Alignment::Center),
-        ])
-        .style(Style::default().add_modifier(Modifier::BOLD));
-
-        let mut rows = Vec::new();
-
-        for (filename, config) in configs {
-            let section = config.section(None);
-
-            if section.get_unprivileged() != Some("1") {
-                continue;
-            }
-
-            let mut first = true;
-            let mut has_user_idmap = false;
-            let mut has_group_idmap = false;
-
-            for idmap in section.get_lxc_idmaps() {
-                let filename_display = if first {
-                    first = false;
-                    filename
-                } else {
-                    ""
-                };
-
-                let mut idmap = idmap.trim().split(' ');
-                let Some(kind) = idmap.next() else {
-                    unreachable!("Invalid ID map entry kind");
-                };
-                let Some(host_user_id) = idmap.next() else {
-                    unreachable!("Invalid ID map entry host user id");
-                };
-                let Some(host_sub_id) = idmap.next() else {
-                    unreachable!("Invalid ID map entry host sub id");
-                };
-                let Some(host_sub_id_size) = idmap.next() else {
-                    unreachable!("Invalid ID map entry host sub id count");
-                };
-
-                let sub_id = if kind == "u" {
-                    has_user_idmap = true;
-                    SubID::UID
-                } else if kind == "g" {
-                    has_group_idmap = true;
-                    SubID::GID
-                } else {
-                    unreachable!("Invalid ID map entry kind");
-                };
-
-                let mut style = Style::default();
-
-                if let Some(finding) = selected_finding {
-                    let filename = CompactString::new(filename);
-
-                    if finding.lxc_config_mapping_highlights.contains(&(filename, sub_id)) {
-                        style = style.bg(finding.selected_bg()).fg(Color::Black);
-                    }
-                }
-
-                rows.push(
-                    Row::new([
-                        Text::from(filename_display).alignment(Alignment::Center),
-                        Text::from(if kind == "u" { "UID" } else { "GID" }).alignment(Alignment::Center),
-                        Text::from(host_user_id).alignment(Alignment::Center),
-                        Text::from(host_sub_id.to_string()).alignment(Alignment::Center),
-                        Text::from(host_sub_id_size).alignment(Alignment::Center),
-                        Text::from(format!(
-                            "{host_sub_id} → {}",
-                            host_sub_id.parse::<u32>().expect("fixme")
-                                + host_sub_id_size.parse::<u32>().expect("fixme")
-                                - 1
-                        ))
-                        .alignment(Alignment::Center),
-                    ])
-                    .style(style),
-                );
-            }
-
-            let mut first = true;
-
-            if !has_user_idmap {
-                first = false;
-
-                let mut style = Style::default();
-
-                if let Some(finding) = selected_finding {
-                    if finding
-                        .lxc_config_mapping_highlights
-                        .contains(&(filename.clone(), SubID::UID))
-                    {
-                        style = style.bg(finding.selected_bg()).fg(Color::Black);
-                    }
-                }
-
-                rows.push(
-                    Row::new([
-                        Text::from(&**filename).alignment(Alignment::Center),
-                        Text::from("UID").alignment(Alignment::Center),
-                        Text::from("?").alignment(Alignment::Center),
-                        Text::from("?").alignment(Alignment::Center),
-                        Text::from("?").alignment(Alignment::Center),
-                        Text::from("? → ?").alignment(Alignment::Center),
-                    ])
-                    .style(style),
-                );
-            }
-
-            if !has_group_idmap {
-                let filename_display = if first { &**filename } else { "" };
-
-                let mut style = Style::default();
-
-                if let Some(finding) = selected_finding {
-                    if finding
-                        .lxc_config_mapping_highlights
-                        .contains(&(filename.clone(), SubID::GID))
-                    {
-                        style = style.bg(finding.selected_bg()).fg(Color::Black);
-                    }
-                }
-
-                rows.push(
-                    Row::new([
-                        Text::from(filename_display).alignment(Alignment::Center),
-                        Text::from("GID").alignment(Alignment::Center),
-                        Text::from("?").alignment(Alignment::Center),
-                        Text::from("?").alignment(Alignment::Center),
-                        Text::from("?").alignment(Alignment::Center),
-                        Text::from("? → ?").alignment(Alignment::Center),
-                    ])
-                    .style(style),
-                );
-            }
-        }
-
-        let block = Block::default()
-            .title(format!("LXC Mappings ({})", self.metadata.lxc_config_dir.display()))
-            .borders(Borders::ALL)
-            .title_alignment(Alignment::Center);
-        let constraints = [
-            // Constraint::Length(20),
-            // Constraint::Length(20),
-            // Constraint::Length(12),
-            // Constraint::Length(20),
-            // Constraint::Length(12),
-        ];
-
-        Table::new(rows, &constraints)
-            .header(header)
-            .block(block)
-            .render(container_area, buf);
-
+        LXCConfigPanel::new(&self.state.lxc_configs, selected_finding, &self.metadata.lxc_config_dir)
+            .render(config_area, buf);
+        RootFSPanel::new(&self.state.rootfs_info).render(rootfs_area, buf);
         FindingsList::new(&self.state.findings, self.state.selected_finding).render(right_area, buf);
+        Footer::new(&items).render(footer_area, buf);
 
         if self.state.show_fix_popup {
             Popup::new(Text::from("Not yet implemented"))
