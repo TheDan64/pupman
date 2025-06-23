@@ -38,12 +38,12 @@ impl FileEventHandler {
 impl EventHandler for FileEventHandler {
     fn handle_event(&mut self, event: Result<NotifyEvent, notify::Error>) {
         if let Ok(event) = event {
-            for path in event.paths {
-                if !is_valid_file(&path) {
+            for path in &event.paths {
+                if !is_valid_file(path) {
                     continue;
                 }
 
-                match event.kind {
+                match &event.kind {
                     EventKind::Create(CreateKind::File) | EventKind::Modify(ModifyKind::Data(_)) => {
                         if self.fs_tx.send(path.clone()).is_err() {
                             error!("Failed to send file system change event {:?} for {path:?}", event.kind);
@@ -61,8 +61,8 @@ impl EventHandler for FileEventHandler {
                             error!("Failed to send file system change event {:?} for {path:?}", event.kind);
                         }
                     },
-                    e => {
-                        debug!("Unsupported file system change kind: {e:?}");
+                    _ => {
+                        debug!("Unsupported file system change kind: {event:?}");
 
                         continue;
                     },
