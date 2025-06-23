@@ -2,7 +2,7 @@ use super::App;
 use footer::{Footer, FooterItem};
 use logs_page::LogsPage;
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
+use ratatui::layout::{Alignment, Rect, Rows};
 use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Text;
@@ -89,11 +89,32 @@ impl Widget for &App {
 
         let [left_area, right_area] =
             Layout::horizontal([Constraint::Percentage(75), Constraint::Percentage(25)]).areas(main_area);
-        let [host_area, container_area] = Layout::vertical([
+        let [host_area, container_area, rootfs_area] = Layout::vertical([
             Constraint::Length(3 + (host.subgid.len() + host.subuid.len()) as u16),
             Constraint::Min(2),
+            Constraint::Length(3),
         ])
         .areas(left_area);
+
+        let rootfs_header = Row::new([Text::from("Path").alignment(Alignment::Center)])
+            .style(Style::default().add_modifier(Modifier::BOLD));
+
+        // ── RootFS Table ──
+        let mut rootfs_rows = Vec::new();
+
+        for (rootfs, _info) in &self.state.rootfs_info {
+            rootfs_rows.push(Row::new(vec![Text::from(&**rootfs).alignment(Alignment::Center)]));
+        }
+
+        Table::new(rootfs_rows, &[])
+            .header(rootfs_header)
+            .block(
+                Block::default()
+                    .title("RootFS")
+                    .borders(Borders::ALL)
+                    .title_alignment(Alignment::Center),
+            )
+            .render(rootfs_area, buf);
 
         let selected_finding = self.selected_finding();
 

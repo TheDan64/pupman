@@ -103,8 +103,11 @@ impl App {
         let config = Config::from_str(content)?;
         let section = config.section(None);
 
+        // FIXME: A problem here is that we're not watching the rootfs file, so we can't
+        // tell if it changed unless the config has changed... one option would be to send it
+        // to the file watcher thread and have it send us a message when the file changes.
         if let Some(rootfs) = section.get_rootfs() {
-            self.state.rootfs_info.insert(rootfs.to_string(), "TODO".to_string());
+            self.state.rootfs_info.insert(rootfs.to_string(), rootfs.to_string());
         }
 
         self.state.lxc_configs.insert(filename, config);
