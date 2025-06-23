@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 
+use log::error;
 use notify::event::{CreateKind, ModifyKind, RemoveKind};
 use notify::{
     Config, Event as NotifyEvent, EventHandler, EventKind, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher,
@@ -44,15 +45,21 @@ impl EventHandler for FileEventHandler {
 
                 match event.kind {
                     EventKind::Create(CreateKind::File) | EventKind::Modify(ModifyKind::Data(_)) => {
-                        self.fs_tx.send(path).expect("fixme");
+                        if self.fs_tx.send(path.clone()).is_err() {
+                            error!("Failed to send file system change event {:?} for {path:?}", event.kind);
+                        }
                     },
                     // REVIEW: Not sure if (re)name is correct:
                     EventKind::Modify(ModifyKind::Name(_)) | EventKind::Remove(RemoveKind::File) => {
-                        self.app_tx
+                        if self
+                            .app_tx
                             .send(Event::App(AppEvent::FileSystemChanged(FileSystemChangeKind::Remove(
-                                path,
+                                path.clone(),
                             ))))
-                            .expect("fixme");
+                            .is_err()
+                        {
+                            error!("Failed to send file system change event {:?} for {path:?}", event.kind);
+                        }
                     },
                     _ => continue,
                 };
@@ -74,6 +81,7 @@ impl MonitorHandler {
         watcher.watch(Path::new(ETC_SUBGID), RecursiveMode::NonRecursive)?;
         watcher.watch(Path::new(ETC_SUBUID), RecursiveMode::NonRecursive)?;
         watcher.watch(lxc_config_dir, RecursiveMode::Recursive)?;
+        // TODO: How to watch each rootfs? NonRecursive.
 
         Ok(Self { _watcher: watcher })
     }

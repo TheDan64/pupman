@@ -253,7 +253,7 @@ impl State {
                 }
             }
 
-            // TODO: This stil needs a test
+            // TODO: This still needs a test
             if !has_user_idmap {
                 self.findings.push(Finding {
                     kind: FindingKind::Bad,
@@ -264,7 +264,7 @@ impl State {
                 });
             }
 
-            // TODO: This stil needs a test
+            // TODO: This still needs a test
             if !has_group_idmap {
                 self.findings.push(Finding {
                     kind: FindingKind::Bad,

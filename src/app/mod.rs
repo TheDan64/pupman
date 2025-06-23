@@ -6,6 +6,7 @@ use std::thread;
 
 use color_eyre::eyre::{OptionExt, eyre};
 use crossterm::event::Event as CrosstermEvent;
+use log::warn;
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -78,9 +79,9 @@ impl App {
                             if path.starts_with(&self.metadata.lxc_config_dir) {
                                 self.load_container_id_map(&path, &content)?;
                             } else if path == Path::new(ETC_SUBUID) {
-                                self.load_subid(&content, SubID::SubUID)?;
+                                self.load_subid(&content, SubID::UID)?;
                             } else if path == Path::new(ETC_SUBGID) {
-                                self.load_subid(&content, SubID::SubGID)?;
+                                self.load_subid(&content, SubID::GID)?;
                             }
                         },
                     };
@@ -99,25 +100,46 @@ impl App {
             .and_then(|f| f.to_str())
             .ok_or_else(|| eyre!("Invalid file name"))?
             .to_string();
-
         let config = Config::from_str(content)?;
+        let section = config.section(None);
 
-        self.state.lxc_configs.insert(filename.clone(), config.clone());
+        if let Some(rootfs) = section.get_rootfs() {
+            self.state.rootfs_info.insert(rootfs.to_string(), "TODO".to_string());
+        }
+
+        self.state.lxc_configs.insert(filename, config);
         // self.state.lxc_configs.sort_unstable_keys();
 
         Ok(())
     }
 
     fn unload_container_id_map(&mut self, path: &Path) -> color_eyre::Result<()> {
-        Err(eyre!("TODO: Unload container id map from path: {path:?}"))
+        let filename = path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .ok_or_else(|| eyre!("Invalid file name"))?;
+        let Some(config) = self.state.lxc_configs.shift_remove(filename) else {
+            warn!("Attempted to unload container ID map for non-existent file: {filename}");
+            return Ok(());
+        };
+        let section = config.section(None);
+
+        if let Some(rootfs) = section.get_rootfs() {
+            if self.state.rootfs_info.shift_remove(rootfs).is_none() {
+                warn!("Attempted to unload rootfs info for non-existent file: {filename}");
+                return Ok(());
+            };
+        }
+
+        Ok(())
     }
 
     fn load_subid(&mut self, content: &str, subid: SubID) -> color_eyre::Result<()> {
         let id_map = parse_subid_map(content)?;
 
         match subid {
-            SubID::SubUID => self.state.host_mapping.subuid = id_map,
-            SubID::SubGID => self.state.host_mapping.subgid = id_map,
+            SubID::UID => self.state.host_mapping.subuid = id_map,
+            SubID::GID => self.state.host_mapping.subgid = id_map,
         }
 
         Ok(())

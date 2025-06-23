@@ -3,6 +3,8 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
 
+use log::error;
+
 use crate::app::event::{AppEvent, Event, FileSystemChangeKind};
 
 /// Receives requests to read files from the file system monitor. Should run in a separate thread.
@@ -14,16 +16,13 @@ pub fn start(rx: Receiver<PathBuf>, tx: Sender<Event>) {
             Ok(content) => {
                 let app_event = Event::App(AppEvent::FileSystemChanged(FileSystemChangeKind::Update(path, content)));
 
-                // TODO:: Log on error
                 if let Err(err) = tx.send(app_event) {
-                    panic!("Failed to send file system change event: {err}");
+                    error!("Failed to send file system change event: {err}");
                 };
             },
-            // TODO:: Log on error
-            Err(err) => panic!("Failed to read file: {err}"),
+            Err(err) => error!("Failed to read file: {err}"),
         }
     }
 
-    // TODO:: Log on error
     panic!("File system monitor thread exited unexpectedly");
 }
