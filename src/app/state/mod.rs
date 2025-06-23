@@ -122,7 +122,7 @@ impl State {
                 continue;
             }
 
-            let rootfs_metadata = section.get_rootfs().and_then(|rootfs_value| {
+            let rootfs = section.get_rootfs().and_then(|rootfs_value| {
                 let path = match rootfs_value_to_path(rootfs_value) {
                     Ok(path) => path,
                     Err(err) => {
@@ -131,7 +131,7 @@ impl State {
                     },
                 };
                 match fs::metadata(&path) {
-                    Ok(metadata) => Some(metadata),
+                    Ok(metadata) => Some((rootfs_value, metadata)),
                     Err(err) => {
                         error!("Failed to get metadata for path {path:?}: {err}");
                         None
@@ -179,15 +179,14 @@ impl State {
                     unreachable!("Invalid sub id kind")
                 };
 
-                if let Some(metadata) = &rootfs_metadata {
+                if let Some((value, metadata)) = &rootfs {
                     if kind == "u" && metadata.uid() != parsed_host_sub_id {
                         self.findings.push(Finding {
                             kind: FindingKind::Bad,
                             message: "Rootfs uid does not match host mapping",
                             host_mapping_highlights: Vec::new(),
                             lxc_config_mapping_highlights: vec![(filename.clone(), SubID::UID)],
-                            // TODO: Highlight rootfs listing?
-                            rootfs_highlights: Vec::new(),
+                            rootfs_highlights: vec![value.to_string()],
                         });
                     }
 
@@ -197,8 +196,7 @@ impl State {
                             message: "Rootfs gid does not match host mapping",
                             host_mapping_highlights: Vec::new(),
                             lxc_config_mapping_highlights: vec![(filename.clone(), SubID::GID)],
-                            // TODO: Highlight rootfs listing?
-                            rootfs_highlights: Vec::new(),
+                            rootfs_highlights: vec![value.to_string()],
                         });
                     }
                 }

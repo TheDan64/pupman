@@ -104,7 +104,7 @@ impl Widget for &App {
         HostMappingPanel::new(&self.state.host_mapping, selected_finding).render(host_area, buf);
         LXCConfigPanel::new(&self.state.lxc_configs, selected_finding, &self.metadata.lxc_config_dir)
             .render(config_area, buf);
-        RootFSPanel::new(&self.state.rootfs_info).render(rootfs_area, buf);
+        RootFSPanel::new(&self.state.rootfs_info, selected_finding).render(rootfs_area, buf);
         FindingsList::new(&self.state.findings, self.state.selected_finding).render(right_area, buf);
         Footer::new(&items).render(footer_area, buf);
 

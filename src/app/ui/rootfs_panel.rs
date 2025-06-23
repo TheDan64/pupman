@@ -1,18 +1,22 @@
 use ahash::RandomState;
+use color_eyre::owo_colors::OwoColorize;
 use indexmap::IndexMap;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Text;
 use ratatui::widgets::{Block, Borders, Row, Table, Widget};
 
+use crate::app::ui::Finding;
+
 pub struct RootFSPanel<'a> {
     info: &'a IndexMap<String, String, RandomState>,
+    selected_finding: Option<&'a Finding>,
 }
 
 impl<'a> RootFSPanel<'a> {
-    pub fn new(info: &'a IndexMap<String, String, RandomState>) -> Self {
-        Self { info }
+    pub fn new(info: &'a IndexMap<String, String, RandomState>, selected_finding: Option<&'a Finding>) -> Self {
+        Self { info, selected_finding }
     }
 }
 
@@ -27,11 +31,22 @@ impl Widget for RootFSPanel<'_> {
         let mut rootfs_rows = Vec::new();
 
         for (rootfs, _info) in self.info {
-            rootfs_rows.push(Row::new(vec![
-                Text::from(&**rootfs).alignment(Alignment::Center),
-                Text::from("TODO").alignment(Alignment::Center),
-                Text::from("TODO").alignment(Alignment::Center),
-            ]));
+            let mut style = Style::default();
+
+            if let Some(finding) = self.selected_finding {
+                if finding.rootfs_highlights.contains(rootfs) {
+                    style = style.bg(finding.selected_bg()).fg(Color::Black);
+                }
+            }
+
+            rootfs_rows.push(
+                Row::new(vec![
+                    Text::from(&**rootfs).alignment(Alignment::Center),
+                    Text::from("TODO").alignment(Alignment::Center),
+                    Text::from("TODO").alignment(Alignment::Center),
+                ])
+                .style(style),
+            );
         }
 
         Table::new(rootfs_rows, &[])
