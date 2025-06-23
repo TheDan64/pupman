@@ -1,3 +1,4 @@
+use crate::app::ui::host_mapping_panel::HostMappingPanel;
 use crate::app::ui::rootfs_panel::RootFSPanel;
 use crate::fs::subid::SubID;
 
@@ -14,10 +15,10 @@ use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Row, Table, Widget
 use tui_widgets::popup::Popup;
 
 use std::fmt::Display;
-use std::iter::repeat;
 
 mod findings_list;
 mod footer;
+mod host_mapping_panel;
 mod logs_page;
 mod rootfs_panel;
 
@@ -101,63 +102,10 @@ impl Widget for &App {
         ])
         .areas(left_area);
 
-        RootFSPanel::new(&self.state.rootfs_info).render(rootfs_area, buf);
-
         let selected_finding = self.selected_finding();
 
-        // ── Host Table ──
-        let mut host_rows = Vec::new();
-
-        let entries = host
-            .subuid
-            .iter()
-            .zip(repeat("UID"))
-            .chain(host.subgid.iter().zip(repeat("GID")))
-            .enumerate();
-
-        for (i, (entry, kind)) in entries {
-            let mut style = Style::default();
-
-            if let Some(finding) = selected_finding {
-                if finding.host_mapping_highlights.contains(&i) {
-                    style = style.bg(finding.selected_bg()).fg(Color::Black);
-                }
-            }
-
-            host_rows.push(
-                Row::new([
-                    Text::from(kind).alignment(Alignment::Center),
-                    Text::from(&*entry.host_user_id).alignment(Alignment::Center),
-                    Text::from(entry.host_sub_id.to_string()).alignment(Alignment::Center),
-                    Text::from(entry.host_sub_id_count.to_string()).alignment(Alignment::Center),
-                    Text::from(format!(
-                        "{} → {}",
-                        entry.host_sub_id,
-                        entry.host_sub_id + entry.host_sub_id_count - 1
-                    ))
-                    .alignment(Alignment::Center),
-                ])
-                .style(style),
-            );
-        }
-
-        let host_header = Row::new([
-            Text::from("Kind").alignment(Alignment::Center),
-            Text::from("ID").alignment(Alignment::Center),
-            Text::from("Sub ID").alignment(Alignment::Center),
-            Text::from("Sub ID Size").alignment(Alignment::Center),
-            Text::from("Sub ID Range").alignment(Alignment::Center),
-        ])
-        .style(Style::default().add_modifier(Modifier::BOLD));
-
-        let host_table = Table::new(host_rows, &[]).header(host_header).block(
-            Block::default()
-                .title("Host Mappings (/etc/subuid /etc/subgid)")
-                .borders(Borders::ALL)
-                .title_alignment(Alignment::Center),
-        );
-
-        host_table.render(host_area, buf);
+        RootFSPanel::new(&self.state.rootfs_info).render(rootfs_area, buf);
+        HostMappingPanel::new(&self.state.host_mapping, selected_finding).render(host_area, buf);
 
         // ── LXC Config Table ──
         let header = Row::new([
