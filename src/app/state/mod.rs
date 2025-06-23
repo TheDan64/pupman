@@ -1,6 +1,7 @@
 use std::collections::{HashMap, hash_map::Entry};
-use std::fs;
+use std::fs::{self, Metadata};
 use std::os::unix::fs::MetadataExt;
+use std::path::PathBuf;
 
 use ahash::RandomState;
 use compact_str::CompactString;
@@ -13,7 +14,6 @@ use crate::fs::subid::SubID;
 use crate::linux::{groupname_to_id, username_to_id};
 use crate::lxc::config::Config;
 use crate::lxc::rootfs_value_to_path;
-use crate::metadata::Metadata;
 
 #[cfg(test)]
 mod tests;
@@ -24,7 +24,7 @@ pub struct State {
     pub selected_finding: Option<usize>,
     pub host_mapping: HostMapping,
     pub lxc_configs: IndexMap<CompactString, Config, RandomState>,
-    pub rootfs_info: IndexMap<String, String, RandomState>,
+    pub rootfs_info: IndexMap<String, (PathBuf, Metadata), RandomState>,
     pub show_fix_popup: bool,
     pub show_settings_page: bool,
     pub show_logs_page: bool,
@@ -54,7 +54,7 @@ impl Default for State {
 impl State {
     /// Findings are re-evaluated based on latest update
     // TODO: Check for overlaps between configs
-    pub fn evaluate_findings(&mut self, _metadata: &Metadata) {
+    pub fn evaluate_findings(&mut self) {
         self.findings.clear();
 
         let mut username_to_id_map = HashMap::with_hasher(RandomState::new());

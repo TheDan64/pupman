@@ -3,13 +3,11 @@ use std::str::FromStr;
 use crate::app::ui::{FindingKind, HostMapping, IdMapEntry};
 use crate::fs::subid::SubID;
 use crate::lxc::config::Config;
-use crate::metadata::Metadata;
 
 use super::State;
 
 #[test]
 fn test_duplicate_username_not_allowed_in_subid() {
-    let pve_md = Metadata::default();
     let mut state = State {
         host_mapping: HostMapping {
             subuid: Vec::new(),
@@ -18,7 +16,7 @@ fn test_duplicate_username_not_allowed_in_subid() {
         ..State::default()
     };
 
-    state.evaluate_findings(&pve_md);
+    state.evaluate_findings();
 
     assert_eq!(state.findings.len(), 1);
     assert_eq!(state.findings[0].kind, FindingKind::Good);
@@ -36,7 +34,7 @@ fn test_duplicate_username_not_allowed_in_subid() {
         },
     ];
 
-    state.evaluate_findings(&pve_md);
+    state.evaluate_findings();
 
     assert_eq!(state.findings.len(), 1);
     assert_eq!(state.findings[0].kind, FindingKind::Bad);
@@ -53,7 +51,7 @@ fn test_duplicate_username_not_allowed_in_subid() {
     state.host_mapping.subgid = state.host_mapping.subuid;
     state.host_mapping.subuid = Vec::new();
 
-    state.evaluate_findings(&pve_md);
+    state.evaluate_findings();
 
     assert_eq!(state.findings.len(), 1);
     assert_eq!(state.findings[0].kind, FindingKind::Bad);
@@ -97,13 +95,13 @@ unprivileged: 1
         ..State::default()
     };
 
-    state.evaluate_findings(&Metadata::default());
+    state.evaluate_findings();
 
     assert!(state.findings.iter().all(|f| f.kind == FindingKind::Good));
 
     state.lxc_configs = [("test.conf".into(), Config::from_str(config2)?)].into_iter().collect();
 
-    state.evaluate_findings(&Metadata::default());
+    state.evaluate_findings();
 
     let findings = state
         .findings

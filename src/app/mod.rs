@@ -7,7 +7,7 @@ use std::thread;
 use color_eyre::eyre::{OptionExt, eyre};
 use compact_str::CompactString;
 use crossterm::event::Event as CrosstermEvent;
-use log::warn;
+use log::{error, warn};
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -24,12 +24,13 @@ use crate::fs;
 use crate::fs::monitor::{MonitorHandler, is_valid_file};
 use crate::fs::subid::{ETC_SUBGID, ETC_SUBUID, SubID};
 use crate::lxc::config::Config;
+use crate::lxc::rootfs_value_to_path;
 use crate::metadata::Metadata;
 
 pub struct App {
     metadata: Metadata,
     // infra: Infrastructure,
-    _monitor: MonitorHandler,
+    monitor: MonitorHandler,
     event_handler: EventHandler,
     fs_reader_tx: Sender<PathBuf>,
     state: State,
@@ -46,7 +47,7 @@ impl App {
 
         Self {
             fs_reader_tx: fs_tx.clone(),
-            _monitor: MonitorHandler::new(event_handler.sender(), fs_tx, &metadata.lxc_config_dir).expect("Fixme"),
+            monitor: MonitorHandler::new(event_handler.sender(), fs_tx, &metadata.lxc_config_dir).expect("Fixme"),
             metadata,
             event_handler,
             state: State::default(),
@@ -87,7 +88,7 @@ impl App {
                         },
                     };
 
-                    self.state.evaluate_findings(&self.metadata);
+                    self.state.evaluate_findings();
                 },
                 AppEvent::Quit => self.quit(),
             },
@@ -103,15 +104,17 @@ impl App {
         let config = Config::from_str(content)?;
         let section = config.section(None);
 
-        // FIXME: A problem here is that we're not watching the rootfs file, so we can't
-        // tell if it changed unless the config has changed... one option would be to send it
-        // to the file watcher thread and have it send us a message when the file changes.
-        if let Some(rootfs) = section.get_rootfs() {
-            self.state.rootfs_info.insert(rootfs.to_string(), rootfs.to_string());
+        if let Some(rootfs_value) = section.get_rootfs() {
+            match rootfs_value_to_path(rootfs_value) {
+                Ok(path) => self.monitor.watch_rootfs(&path)?,
+                Err(err) => {
+                    error!("Failed to convert rootfs value {rootfs_value} to path for load: {err:?}");
+                },
+            };
         }
 
         self.state.lxc_configs.insert(CompactString::new(filename), config);
-        // self.state.lxc_configs.sort_unstable_keys();
+        self.state.lxc_configs.sort_unstable_keys();
 
         Ok(())
     }
