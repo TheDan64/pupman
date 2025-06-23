@@ -303,7 +303,7 @@ impl Widget for &App {
                 if let Some(finding) = selected_finding {
                     let filename = CompactString::new(filename);
 
-                    if finding.lxc_config_mapping_highlights.contains(&(filename, SubID::UID)) {
+                    if finding.lxc_config_mapping_highlights.contains(&(filename, SubID::GID)) {
                         style = style.bg(finding.selected_bg()).fg(Color::Black);
                     }
                 }
