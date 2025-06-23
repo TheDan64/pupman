@@ -108,8 +108,8 @@ impl Widget for &App {
         for (rootfs, _info) in &self.state.rootfs_info {
             rootfs_rows.push(Row::new(vec![
                 Text::from(&**rootfs).alignment(Alignment::Center),
-                Text::from("TODO"),
-                Text::from("TODO"),
+                Text::from("TODO").alignment(Alignment::Center),
+                Text::from("TODO").alignment(Alignment::Center),
             ]));
         }
 
@@ -200,6 +200,8 @@ impl Widget for &App {
             }
 
             let mut first = true;
+            let mut has_user_idmap = false;
+            let mut has_group_idmap = false;
 
             for (j, idmap) in section.get_lxc_idmaps().enumerate() {
                 let filename = if first {
@@ -222,6 +224,12 @@ impl Widget for &App {
                 let Some(host_sub_id_size) = idmap.next() else {
                     unreachable!("Invalid ID map entry host sub id count");
                 };
+
+                if kind == "u" {
+                    has_user_idmap = true;
+                } else if kind == "g" {
+                    has_group_idmap = true;
+                }
 
                 let mut style = Style::default();
 
@@ -248,6 +256,34 @@ impl Widget for &App {
                     ])
                     .style(style),
                 );
+            }
+
+            let mut first = true;
+
+            if !has_user_idmap {
+                first = false;
+
+                rows.push(Row::new([
+                    Text::from(&**filename).alignment(Alignment::Center),
+                    Text::from("UID").alignment(Alignment::Center),
+                    Text::from("?").alignment(Alignment::Center),
+                    Text::from("?").alignment(Alignment::Center),
+                    Text::from("?").alignment(Alignment::Center),
+                    Text::from("? → ?").alignment(Alignment::Center),
+                ]));
+            }
+
+            if !has_group_idmap {
+                let filename = if first { &**filename } else { "" };
+
+                rows.push(Row::new([
+                    Text::from(filename).alignment(Alignment::Center),
+                    Text::from("GID").alignment(Alignment::Center),
+                    Text::from("?").alignment(Alignment::Center),
+                    Text::from("?").alignment(Alignment::Center),
+                    Text::from("?").alignment(Alignment::Center),
+                    Text::from("? → ?").alignment(Alignment::Center),
+                ]));
             }
         }
 
