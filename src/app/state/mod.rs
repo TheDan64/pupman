@@ -54,7 +54,7 @@ impl Default for State {
 impl State {
     /// Findings are re-evaluated based on latest update
     // TODO: Check for overlaps between configs
-    pub fn evaluate_findings(&mut self, metadata: &Metadata) {
+    pub fn evaluate_findings(&mut self, _metadata: &Metadata) {
         self.findings.clear();
 
         let mut username_to_id_map = HashMap::with_hasher(RandomState::new());
@@ -67,16 +67,13 @@ impl State {
                 Entry::Occupied(occupancy) => {
                     let j = *occupancy.get();
 
-                    // If this is a Proxmox VE environment, we cannot have multiple entries for the same user
-                    if metadata.is_pve {
-                        self.findings.push(Finding {
-                            kind: FindingKind::Bad,
-                            message: "Cannot have multiple entries for the same user",
-                            host_mapping_highlights: vec![j, i],
-                            lxc_config_mapping_highlights: Vec::new(),
-                            rootfs_highlights: Vec::new(),
-                        });
-                    }
+                    self.findings.push(Finding {
+                        kind: FindingKind::Bad,
+                        message: "Cannot have multiple entries for the same user",
+                        host_mapping_highlights: vec![j, i],
+                        lxc_config_mapping_highlights: Vec::new(),
+                        rootfs_highlights: Vec::new(),
+                    });
                 },
                 Entry::Vacant(vacancy) => {
                     vacancy.insert(i);
@@ -92,16 +89,13 @@ impl State {
                 Entry::Occupied(occupancy) => {
                     let j = *occupancy.get();
 
-                    // If this is a Proxmox VE environment, we cannot have multiple entries for the same group
-                    if metadata.is_pve {
-                        self.findings.push(Finding {
-                            kind: FindingKind::Bad,
-                            message: "Cannot have multiple entries for the same group",
-                            host_mapping_highlights: vec![j, i],
-                            lxc_config_mapping_highlights: Vec::new(),
-                            rootfs_highlights: Vec::new(),
-                        });
-                    }
+                    self.findings.push(Finding {
+                        kind: FindingKind::Bad,
+                        message: "Cannot have multiple entries for the same group",
+                        host_mapping_highlights: vec![j, i],
+                        lxc_config_mapping_highlights: Vec::new(),
+                        rootfs_highlights: Vec::new(),
+                    });
                 },
                 Entry::Vacant(vacancy) => {
                     vacancy.insert(i);
@@ -109,11 +103,10 @@ impl State {
             };
         }
 
-        if metadata.is_pve
-            && !self
-                .findings
-                .iter()
-                .any(|f| f.message.starts_with("Cannot have multiple entries for the same"))
+        if !self
+            .findings
+            .iter()
+            .any(|f| f.message.starts_with("Cannot have multiple entries for the same"))
         {
             self.findings.push(Finding {
                 kind: FindingKind::Good,

@@ -9,10 +9,7 @@ use super::State;
 
 #[test]
 fn test_duplicate_username_not_allowed_in_subid() {
-    let pve_md = Metadata {
-        is_pve: true,
-        ..Metadata::default()
-    };
+    let pve_md = Metadata::default();
     let mut state = State {
         host_mapping: HostMapping {
             subuid: Vec::new(),
