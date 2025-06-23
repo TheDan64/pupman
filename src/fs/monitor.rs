@@ -90,6 +90,7 @@ impl MonitorHandler {
     }
 
     pub fn watch_rootfs(&mut self, rootfs: &Path) -> notify::Result<()> {
+        debug!("Watching rootfs for changes: {rootfs:?}");
         self.watcher.watch(rootfs, RecursiveMode::NonRecursive)
     }
 }
