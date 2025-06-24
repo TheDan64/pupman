@@ -35,7 +35,8 @@ impl Widget for LogsPage<'_> {
         let items = &[
             Key("Esc", "Back", Color::LightRed),
             Div,
-            Key("↑↓", "Navigate", Color::LightGreen),
+            Key("⇅", "Navigate", Color::LightGreen),
+            Key("⇆", "Log level", Color::LightGreen),
             Key("h", "Hide", Color::White),
             Key("f", "Focus", Color::White),
         ];

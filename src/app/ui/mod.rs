@@ -120,7 +120,7 @@ impl Widget for &App {
         }
 
         if self.state.show_fix_popup {
-            Popup::new(Text::from("Not yet implemented"))
+            Popup::new(Text::from("Not yet implemented. This will provide options to fix the selected finding."))
                 .title("Fix finding")
                 // .style(Style::new().fg(Color::White).bg(Color::DarkGray)) // Normal
                 .style(Style::new().fg(Color::LightRed).bg(Color::Rgb(48, 0, 0))) // Warning
