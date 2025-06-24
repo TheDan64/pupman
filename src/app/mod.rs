@@ -101,6 +101,7 @@ impl App {
 
     fn load_rootfs_metadata(&mut self, rootfs_value: String, path: PathBuf, metadata: std::fs::Metadata) {
         self.state.rootfs_info.insert(rootfs_value, (path, metadata));
+        self.state.rootfs_info.sort_unstable_keys();
     }
 
     fn load_container_id_map(&mut self, path: &Path, content: &str) -> color_eyre::Result<()> {
