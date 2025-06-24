@@ -18,11 +18,11 @@ impl Widget for LogsPage<'_> {
         let [main_area, footer_area] = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
 
         TuiLoggerSmartWidget::default()
-            .style_error(Style::default().fg(Color::Red))
-            .style_debug(Style::default().fg(Color::Green))
-            .style_warn(Style::default().fg(Color::Yellow))
-            .style_trace(Style::default().fg(Color::Magenta))
-            .style_info(Style::default().fg(Color::Cyan))
+            .style_error(Style::default().fg(Color::LightRed))
+            .style_debug(Style::default().fg(Color::LightGreen))
+            .style_warn(Style::default().fg(Color::LightYellow))
+            .style_trace(Style::default().fg(Color::LightMagenta))
+            .style_info(Style::default().fg(Color::LightCyan))
             .output_separator(':')
             .output_timestamp(Some("%H:%M:%S".to_string()))
             .output_level(Some(TuiLoggerLevelOutput::Abbreviated))
@@ -35,7 +35,7 @@ impl Widget for LogsPage<'_> {
         let items = &[
             Key("Esc", "Back", Color::LightRed),
             Div,
-            Key("⇅", "Navigate", Color::LightGreen),
+            Key("↑↓", "Navigate", Color::LightGreen),
             Key("⇆", "Log level", Color::LightGreen),
             Key("h", "Hide", Color::White),
             Key("f", "Focus", Color::White),
