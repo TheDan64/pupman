@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{self, Sender, TryRecvError};
-use std::thread::sleep;
+use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::time::Duration;
 use std::{fs, thread};
 
@@ -107,7 +106,8 @@ impl MonitorHandler {
             let mut paths = HashMap::new();
 
             loop {
-                match dir_watcher_rx.try_recv() {
+                // Wait up to 5 seconds for a new value, otherwise timeout to re-check
+                match dir_watcher_rx.recv_timeout(Duration::from_secs(5)) {
                     Ok(rootfs_value) => {
                         let path = match rootfs_value_to_path(&rootfs_value) {
                             Ok(path) => path,
@@ -125,6 +125,7 @@ impl MonitorHandler {
                         };
 
                         paths.insert(path.clone(), (rootfs_value.clone(), md.clone()));
+
                         if app_tx
                             .send(Event::App(AppEvent::FileSystemChanged(
                                 FileSystemChangeKind::UpdateDir(rootfs_value, path, md),
@@ -133,12 +134,13 @@ impl MonitorHandler {
                         {
                             error!("Failed to send initial UpdateDir event");
                         }
-                    },
-                    Err(TryRecvError::Empty) => (),
-                    Err(TryRecvError::Disconnected) => panic!("RootFS ownership watcher died unexpectedly!"),
-                };
 
-                sleep(Duration::from_secs(5));
+                        continue;
+                    },
+                    // Timeout: time to re-check all watched paths
+                    Err(RecvTimeoutError::Timeout) => {},
+                    Err(RecvTimeoutError::Disconnected) => panic!("RootFS ownership watcher died unexpectedly!"),
+                };
 
                 for (path, (rootfs_value, old_md)) in &mut paths {
                     let md = match fs::metadata(path) {
