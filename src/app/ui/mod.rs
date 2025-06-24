@@ -69,7 +69,7 @@ impl Widget for &App {
         let [host_area, config_area, rootfs_area] = Layout::vertical([
             Constraint::Length(3 + (host.subgid.len() + host.subuid.len()) as u16),
             Constraint::Min(2),
-            Constraint::Min(4),
+            Constraint::Percentage(25),
         ])
         .areas(left_area);
 
