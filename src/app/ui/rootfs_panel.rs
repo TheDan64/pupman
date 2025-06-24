@@ -1,4 +1,5 @@
 use std::fs::Metadata;
+use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
 use ahash::RandomState;
@@ -35,7 +36,7 @@ impl Widget for RootFSPanel<'_> {
         .style(Style::default().add_modifier(Modifier::BOLD));
         let mut rootfs_rows = Vec::new();
 
-        for (rootfs, _info) in self.info {
+        for (rootfs, (path, metadata)) in self.info {
             let mut style = Style::default();
 
             if let Some(finding) = self.selected_finding {
@@ -46,9 +47,9 @@ impl Widget for RootFSPanel<'_> {
 
             rootfs_rows.push(
                 Row::new(vec![
-                    Text::from(&**rootfs).alignment(Alignment::Center),
-                    Text::from("TODO").alignment(Alignment::Center),
-                    Text::from("TODO").alignment(Alignment::Center),
+                    Text::from(path.to_string_lossy()).alignment(Alignment::Center),
+                    Text::from(metadata.uid().to_string()).alignment(Alignment::Center),
+                    Text::from(metadata.gid().to_string()).alignment(Alignment::Center),
                 ])
                 .style(style),
             );
@@ -58,7 +59,7 @@ impl Widget for RootFSPanel<'_> {
             .header(rootfs_header)
             .block(
                 Block::default()
-                    .title("RootFS")
+                    .title("Root Filesystems")
                     .borders(Borders::ALL)
                     .title_alignment(Alignment::Center),
             )
