@@ -181,6 +181,16 @@ impl App {
             return Ok(());
         }
 
+        // If the explain popup is shown, handle the key events for the popup.
+        if self.state.show_explain_popup {
+            match key_event.code {
+                KeyCode::Esc => self.state.show_explain_popup = false,
+                _ => {},
+            }
+
+            return Ok(());
+        }
+
         // If the settings page is shown, handle the key events for the settings page.
         if self.state.show_settings_page {
             match key_event.code {
@@ -227,6 +237,13 @@ impl App {
                 if let Some(finding) = self.selected_finding() {
                     if finding.kind == FindingKind::Bad {
                         self.state.show_fix_popup = true;
+                    }
+                }
+            },
+            KeyCode::Char('e') if !self.state.show_explain_popup => {
+                if let Some(finding) = self.selected_finding() {
+                    if finding.kind == FindingKind::Bad {
+                        self.state.show_explain_popup = true;
                     }
                 }
             },

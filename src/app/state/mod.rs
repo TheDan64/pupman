@@ -28,6 +28,7 @@ pub struct State {
     pub show_fix_popup: bool,
     pub show_settings_page: bool,
     pub show_logs_page: bool,
+    pub show_explain_popup: bool,
     pub logger_page_state: TuiWidgetState,
 }
 
@@ -46,6 +47,7 @@ impl Default for State {
             show_fix_popup: false,
             show_settings_page: false,
             show_logs_page: false,
+            show_explain_popup: false,
             logger_page_state: TuiWidgetState::default(),
         }
     }

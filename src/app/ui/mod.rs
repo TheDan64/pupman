@@ -77,6 +77,8 @@ impl Widget for &App {
 
         let items = if self.state.show_fix_popup {
             vec![FooterItem::Key("Esc", "Back", Color::LightRed)]
+        } else if self.state.show_explain_popup {
+            vec![FooterItem::Key("Esc", "Back", Color::LightRed)]
         } else {
             // Esc: Quit  │  ↑↓: Navigate  e: Explain  f: Fix  |  s: Settings  l: Logs
             let mut items = vec![
@@ -107,6 +109,15 @@ impl Widget for &App {
         RootFSPanel::new(&self.state.rootfs_info, selected_finding).render(rootfs_area, buf);
         FindingsList::new(&self.state.findings, self.state.selected_finding).render(right_area, buf);
         Footer::new(&items).render(footer_area, buf);
+
+        if self.state.show_explain_popup {
+            Popup::new(Text::from(
+                "Not yet implemented. This will show detailed information about the selected finding.",
+            ))
+            .title("Explain finding")
+            .style(Style::new().fg(Color::LightCyan).bg(Color::Rgb(0, 48, 48)))
+            .render(inner_area, buf);
+        }
 
         if self.state.show_fix_popup {
             Popup::new(Text::from("Not yet implemented"))
