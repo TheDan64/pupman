@@ -14,7 +14,9 @@ pub fn start(rx: Receiver<PathBuf>, tx: Sender<Event>) {
     while let Ok(path) = rx.recv() {
         match read_to_string(&path) {
             Ok(content) => {
-                let app_event = Event::App(AppEvent::FileSystemChanged(FileSystemChangeKind::Update(path, content)));
+                let app_event = Event::App(AppEvent::FileSystemChanged(FileSystemChangeKind::UpdateFile(
+                    path, content,
+                )));
 
                 if let Err(err) = tx.send(app_event) {
                     error!("Failed to send file system change event: {err}");

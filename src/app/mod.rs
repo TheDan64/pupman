@@ -7,7 +7,7 @@ use std::thread;
 use color_eyre::eyre::{OptionExt, eyre};
 use compact_str::CompactString;
 use crossterm::event::Event as CrosstermEvent;
-use log::{error, warn};
+use log::warn;
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -24,7 +24,6 @@ use crate::fs;
 use crate::fs::monitor::{MonitorHandler, is_valid_file};
 use crate::fs::subid::{ETC_SUBGID, ETC_SUBUID, SubID};
 use crate::lxc::config::Config;
-use crate::lxc::rootfs_value_to_path;
 use crate::metadata::Metadata;
 
 pub struct App {
@@ -76,8 +75,9 @@ impl App {
             Event::App(app_event) => match app_event {
                 AppEvent::FileSystemChanged(change_kind) => {
                     match change_kind {
-                        FileSystemChangeKind::Remove(path) => self.unload_container_id_map(&path)?,
-                        FileSystemChangeKind::Update(path, content) => {
+                        // /etc/subuid and /etc/subgid are permanent and cannot be removed, so we assume it's a config
+                        FileSystemChangeKind::RemoveFile(path) => self.unload_container_id_map(&path)?,
+                        FileSystemChangeKind::UpdateFile(path, content) => {
                             if path.starts_with(&self.metadata.lxc_config_dir) {
                                 self.load_container_id_map(&path, &content)?;
                             } else if path == Path::new(ETC_SUBUID) {
@@ -85,6 +85,9 @@ impl App {
                             } else if path == Path::new(ETC_SUBGID) {
                                 self.load_subid(&content, SubID::GID)?;
                             }
+                        },
+                        FileSystemChangeKind::UpdateDir(rootfs_value, path, metadata) => {
+                            self.load_rootfs_metadata(rootfs_value, path, metadata);
                         },
                     };
 
@@ -96,6 +99,10 @@ impl App {
         Ok(())
     }
 
+    fn load_rootfs_metadata(&mut self, rootfs_value: String, path: PathBuf, metadata: std::fs::Metadata) {
+        self.state.rootfs_info.insert(rootfs_value, (path, metadata));
+    }
+
     fn load_container_id_map(&mut self, path: &Path, content: &str) -> color_eyre::Result<()> {
         let filename = path
             .file_name()
@@ -105,12 +112,7 @@ impl App {
         let section = config.section(None);
 
         if let Some(rootfs_value) = section.get_rootfs() {
-            match rootfs_value_to_path(rootfs_value) {
-                Ok(path) => self.monitor.watch_rootfs(&path)?,
-                Err(err) => {
-                    error!("Failed to convert rootfs value {rootfs_value} to path for load: {err:?}");
-                },
-            };
+            self.monitor.watch_rootfs(rootfs_value)?;
         }
 
         self.state.lxc_configs.insert(CompactString::new(filename), config);

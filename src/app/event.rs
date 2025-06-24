@@ -1,5 +1,6 @@
 use color_eyre::eyre::WrapErr;
 use ratatui::crossterm::event::{self, Event as CrosstermEvent};
+use std::fs::Metadata;
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
@@ -29,8 +30,9 @@ pub enum Event {
 
 #[derive(Clone, Debug)]
 pub enum FileSystemChangeKind {
-    Remove(PathBuf),
-    Update(PathBuf, String),
+    RemoveFile(PathBuf),
+    UpdateFile(PathBuf, String),
+    UpdateDir(String, PathBuf, Metadata),
 }
 
 /// Application events.
