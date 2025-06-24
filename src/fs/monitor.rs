@@ -139,7 +139,10 @@ impl MonitorHandler {
                     },
                     // Timeout: time to re-check all watched paths
                     Err(RecvTimeoutError::Timeout) => {},
-                    Err(RecvTimeoutError::Disconnected) => panic!("RootFS ownership watcher died unexpectedly!"),
+                    Err(RecvTimeoutError::Disconnected) => {
+                        error!("RootFS ownership watcher died unexpectedly!");
+                        break;
+                    },
                 };
 
                 for (path, (rootfs_value, old_md)) in &mut paths {
